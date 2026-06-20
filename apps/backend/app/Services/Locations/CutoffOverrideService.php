@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Locations;
 
 use App\Broadcasting\LocationStateUpdated;
-use App\Domain\Fifo\CutoffCalculator;
 use App\Domain\Fifo\Decision;
 use App\Domain\Fifo\LiveState;
 use App\Domain\Fifo\Status;
@@ -27,7 +26,6 @@ final class CutoffOverrideService
 {
     public function __construct(
         private readonly LiveStateReader $liveStateReader,
-        private readonly CutoffCalculator $calculator,
         private readonly LocationRedisStateWriter $redisWriter,
         private readonly AuditLogger $auditLogger,
         private readonly PushNotificationService $pushNotifications,

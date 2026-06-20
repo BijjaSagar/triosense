@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Log;
 final class PushNotificationService
 {
     /**
+     * @param  list<int>  $userIds
      * @param  array<string, mixed>  $data
      */
     public function sendToUsers(array $userIds, string $title, string $body, array $data = []): void

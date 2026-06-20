@@ -48,8 +48,8 @@ final class AuditLogger
             'after_json' => $after !== null && $reason !== null
                 ? array_merge($after, ['reason' => $reason])
                 : ($after ?? ($reason !== null ? ['reason' => $reason] : null)),
-            'ip_address' => request()?->ip(),
-            'user_agent' => request()?->userAgent(),
+            'ip_address' => request()->ip(),
+            'user_agent' => request()->userAgent(),
             'occurred_at' => now(),
         ]);
     }
