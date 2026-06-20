@@ -88,6 +88,13 @@ final class LocationRedisStateWriter
             Redis::set($map[$field], (string) $value);
         }
 
+        if (! array_key_exists('last_event_at', $values)) {
+            Redis::set(
+                LocationRedisKeys::lastEventAt($locationId),
+                (string) \Carbon\CarbonImmutable::now()->getTimestampMs()
+            );
+        }
+
         Log::debug('LocationRedisStateWriter.seed', [
             'location_id' => $locationId,
             'fields' => array_keys($values),

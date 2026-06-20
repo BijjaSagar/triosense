@@ -25,11 +25,11 @@ use Illuminate\Support\Facades\Redis;
 beforeEach(function (): void {
     try {
         Redis::connection()->ping();
+        Redis::connection()->flushdb();
     } catch (Throwable) {
         $this->markTestSkipped('Redis is not available for FifoTick integration tests.');
     }
 
-    Redis::connection()->flushdb();
     $this->seed(DatabaseSeeder::class);
     CarbonImmutable::setTestNow(
         CarbonImmutable::parse('2026-06-20 06:00:00', 'Asia/Kolkata')
@@ -38,7 +38,11 @@ beforeEach(function (): void {
 
 afterEach(function (): void {
     CarbonImmutable::setTestNow();
-    Redis::connection()->flushdb();
+    try {
+        Redis::connection()->flushdb();
+    } catch (Throwable) {
+        // Redis unavailable — nothing to clean up.
+    }
 });
 
 function seedLocationRedis(int $locationId, array $values): void
