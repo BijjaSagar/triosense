@@ -4,11 +4,14 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToTenant;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 final class CutoffEvent extends Model
 {
+    use BelongsToTenant;
+
     public const UPDATED_AT = null;
 
     protected $primaryKey = 'cutoff_event_id';
