@@ -72,6 +72,7 @@ final class LiveStateReader
             now: $now,
             closesAt: $closesAt,
             mode: Mode::from($location->mode),
+            festivalMode: (bool) $location->festival_mode,
         );
     }
 

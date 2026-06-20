@@ -20,10 +20,12 @@ namespace App\Domain\Fifo;
 final class CutoffCalculator
 {
     /**
-     * Buffer added to projected arrivals to absorb noise (10% by default).
-     * Tuned during shadow-mode rollout.
+     * Buffer added to projected arrivals to absorb noise (10% default, 20% festival).
+     * Tuned during shadow-mode rollout. See ADR-0004.
      */
-    private const float SAFETY_MARGIN = 0.10;
+    private const float DEFAULT_SAFETY_MARGIN = 0.10;
+
+    private const float FESTIVAL_SAFETY_MARGIN = 0.20;
 
     /**
      * Below this minute-rate of issuance, we treat throughput as unknown
@@ -68,8 +70,9 @@ final class CutoffCalculator
         //    yet because the actual cutoff depends on real future arrivals.
         if ($state->issuanceRatePerMin >= self::MIN_ISSUANCE_RATE_FOR_FORECAST) {
             $projectedArrivals = $state->projectedArrivalsBeforeClose();
+            $margin = $state->festivalMode ? self::FESTIVAL_SAFETY_MARGIN : self::DEFAULT_SAFETY_MARGIN;
             $bufferedDemand = (int) ceil(
-                ($queueLength + $projectedArrivals) * (1 + self::SAFETY_MARGIN)
+                ($queueLength + $projectedArrivals) * (1 + $margin)
             );
 
             if ($bufferedDemand >= $remaining) {

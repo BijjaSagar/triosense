@@ -25,7 +25,13 @@ final readonly class LiveState
         public CarbonImmutable $now,
         public CarbonImmutable $closesAt,
         public Mode $mode = Mode::SHADOW,
+        public bool $festivalMode = false,
     ) {
+    }
+
+    public function safetyMargin(): float
+    {
+        return $this->festivalMode ? 0.20 : 0.10;
     }
 
     public function tokensRemaining(): int

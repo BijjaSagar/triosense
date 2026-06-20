@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CrossCounterBanner } from '@/components/locations/cross-counter-banner';
 import { LocationCard } from '@/components/locations/location-card';
 import { fetchLocationState } from '@/lib/api';
 import { getToken } from '@/lib/auth';
@@ -46,6 +47,7 @@ export default function DashboardPage() {
 
   return (
     <div>
+      <CrossCounterBanner />
       <h1 className="text-2xl font-bold text-maroon-700">Live counters</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Real-time state for all three TTD SSD locations
