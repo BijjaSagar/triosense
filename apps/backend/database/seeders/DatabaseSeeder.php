@@ -155,11 +155,25 @@ final class DatabaseSeeder extends Seeder
 
         $cameras = [
             [
+                'camera_id' => 1,
+                'location_id' => 1,
+                'edge_device_id' => 1,
+                'name' => 'VSN Mac Webcam Demo',
+                'role' => 'entry_tripwire',
+                'source_type' => 'webcam',
+                'rtsp_url' => '0',
+                'tripwire_json' => json_encode([
+                    'line' => [[200, 360], [1080, 360]],
+                    'direction' => 'down',
+                ], JSON_THROW_ON_ERROR),
+            ],
+            [
                 'camera_id' => 17,
                 'location_id' => 3,
                 'edge_device_id' => 3,
                 'name' => 'Bhudevi Entry Tripwire',
                 'role' => 'entry_tripwire',
+                'source_type' => 'rtsp',
                 'rtsp_url' => 'rtsp://127.0.0.1:8554/entry',
                 'tripwire_json' => $tripwire,
             ],
@@ -169,6 +183,7 @@ final class DatabaseSeeder extends Seeder
                 'edge_device_id' => 3,
                 'name' => 'Bhudevi Counter Window',
                 'role' => 'counter_window',
+                'source_type' => 'rtsp',
                 'rtsp_url' => 'rtsp://127.0.0.1:8554/counter',
                 'tripwire_json' => null,
             ],
@@ -182,6 +197,7 @@ final class DatabaseSeeder extends Seeder
                 'edge_device_id' => $camera['edge_device_id'],
                 'name' => $camera['name'],
                 'role' => $camera['role'],
+                'source_type' => $camera['source_type'],
                 'rtsp_url' => $camera['rtsp_url'],
                 'tripwire_json' => $camera['tripwire_json'],
                 'status' => 'active',

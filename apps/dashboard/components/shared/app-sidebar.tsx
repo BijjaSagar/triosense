@@ -44,19 +44,31 @@ export function AppSidebar({ locations = FALLBACK_LOCATIONS }: AppSidebarProps) 
           Counters
         </p>
         {locations.map((location) => (
-          <Link
-            key={location.location_id}
-            href={`/dashboard/locations/${location.location_id}`}
-            className={cn(
-              'rounded-lg px-3 py-2 text-sm',
-              pathname === `/dashboard/locations/${location.location_id}`
-                ? 'bg-maroon-700 text-white'
-                : 'text-foreground hover:bg-muted',
-            )}
-          >
-            <span className="font-medium">{location.short_code}</span>
-            <span className="ml-2 text-muted-foreground">{location.name}</span>
-          </Link>
+          <div key={location.location_id}>
+            <Link
+              href={`/dashboard/locations/${location.location_id}`}
+              className={cn(
+                'block rounded-lg px-3 py-2 text-sm',
+                pathname === `/dashboard/locations/${location.location_id}`
+                  ? 'bg-maroon-700 text-white'
+                  : 'text-foreground hover:bg-muted',
+              )}
+            >
+              <span className="font-medium">{location.short_code}</span>
+              <span className="ml-2 text-muted-foreground">{location.name}</span>
+            </Link>
+            <Link
+              href={`/dashboard/locations/${location.location_id}/settings`}
+              className={cn(
+                'ml-6 block rounded-lg px-3 py-1 text-xs',
+                pathname === `/dashboard/locations/${location.location_id}/settings`
+                  ? 'font-semibold text-maroon-700'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Camera settings
+            </Link>
+          </div>
         ))}
       </nav>
     </aside>

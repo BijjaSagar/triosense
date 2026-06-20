@@ -20,6 +20,7 @@ final class Camera extends Model
         'edge_device_id',
         'name',
         'role',
+        'source_type',
         'rtsp_url',
         'tripwire_json',
         'status',

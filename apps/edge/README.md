@@ -57,9 +57,27 @@ From repo root:
 
 ```bash
 make edge-pipeline    # mock pipeline against location_3 example config
+make edge-webcam      # Mac webcam demo (YOLO + tripwire on device 0)
 make edge-calibrate   # calibration web UI on :8765
 make edge-test
 ```
+
+## Mac webcam demo (local)
+
+Grant **camera permission** to Terminal or Cursor when macOS prompts on first run.
+
+```bash
+# 1. Start stack (EMQX on :1883, backend, dashboard)
+make up
+make seed
+
+# 2. In another terminal — real YOLO on Mac webcam
+make edge-webcam
+```
+
+Walk across the tripwire line in frame; watch MQTT `enter`/`exit` events on the dashboard live view for location 1.
+
+Configure the tripwire via dashboard: `http://localhost:3000/dashboard/locations/1/settings` (login: `ops@ttd.gov.in` / `password`).
 
 ## Module map
 

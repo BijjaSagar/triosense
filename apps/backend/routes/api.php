@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\CameraController;
 use App\Http\Controllers\Api\V1\EdgeConfigController;
 use App\Http\Controllers\Api\V1\FcmTokenController;
 use App\Http\Controllers\Api\V1\LocationController;
@@ -43,6 +44,12 @@ Route::prefix('v1')->group(function (): void {
             ->whereNumber('locationId');
         Route::get('/locations/{locationId}/announcements', [LocationManagementController::class, 'announcements'])
             ->whereNumber('locationId');
+
+        Route::get('/locations/{locationId}/cameras', [CameraController::class, 'index'])
+            ->whereNumber('locationId');
+        Route::patch('/locations/{locationId}/cameras/{cameraId}', [CameraController::class, 'update'])
+            ->whereNumber('locationId')
+            ->whereNumber('cameraId');
 
         Route::get('/cross-counter/recommendations', [LocationManagementController::class, 'crossCounterRecommendations']);
     });

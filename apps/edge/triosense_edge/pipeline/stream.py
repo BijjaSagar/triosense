@@ -1,4 +1,4 @@
-"""RTSP frame intake — GStreamer preferred, OpenCV/mock fallbacks for dev/CI."""
+"""Video frame intake — RTSP, webcam, GStreamer, OpenCV, or mock for dev/CI."""
 
 from __future__ import annotations
 
@@ -31,11 +31,13 @@ class RtspStream:
         self,
         rtsp_url: str,
         *,
+        source_type: Literal["rtsp", "webcam"] = "rtsp",
         backend: Literal["gstreamer", "opencv", "mock"] = "opencv",
         target_fps: int = 15,
         reconnect_seconds: float = 5.0,
     ) -> None:
         self._rtsp_url = rtsp_url
+        self._source_type = source_type
         self._backend = backend
         self._target_fps = target_fps
         self._reconnect_seconds = reconnect_seconds
@@ -98,6 +100,12 @@ class RtspStream:
             log.info("rtsp stream opened url=%s backend=%s", masked, self._backend)
 
     def _open_capture_sync(self) -> cv2.VideoCapture | None:
+        if self._source_type == "webcam":
+            device_index = self._webcam_device_index()
+            log.info("opening webcam device_index=%d", device_index)
+            capture = cv2.VideoCapture(device_index)
+            return capture if capture.isOpened() else None
+
         if self._backend == "gstreamer":
             pipeline = _gstreamer_pipeline(self._rtsp_url)
             capture = cv2.VideoCapture(pipeline, cv2.CAP_GSTREAMER)
@@ -107,6 +115,16 @@ class RtspStream:
 
         capture = cv2.VideoCapture(self._rtsp_url)
         return capture if capture.isOpened() else None
+
+    def _webcam_device_index(self) -> int:
+        raw = self._rtsp_url.strip()
+        if raw.startswith("webcam:"):
+            raw = raw.split(":", 1)[1]
+        try:
+            return int(raw)
+        except ValueError:
+            log.warning("invalid webcam device index %r — defaulting to 0", self._rtsp_url)
+            return 0
 
     async def _read_frame(self) -> NDArray[np.uint8] | None:
         if self._backend == "mock":

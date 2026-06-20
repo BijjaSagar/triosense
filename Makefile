@@ -6,7 +6,7 @@ COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compos
 .PHONY: help up down logs ps health restart \
         backend-shell backend-test backend-stan backend-migrate backend-seed \
         dashboard-dev dashboard-build dashboard-test dashboard-lint \
-        edge-test edge-lint edge-pipeline edge-calibrate \
+        edge-test edge-lint edge-pipeline edge-calibrate edge-webcam \
         mobile-test mobile-analyze \
         test lint \
         seed clean
@@ -109,6 +109,9 @@ edge-pipeline: ## Run vision pipeline in mock mode (location 3 example config)
 
 edge-calibrate: ## Tripwire calibration web UI on :8765
 	cd apps/edge && poetry run triosense-edge-calibrate --config=config/location_3.example.yaml --port=8765
+
+edge-webcam: ## Mac webcam demo — YOLO + tripwire on device 0 (location 1)
+	cd apps/edge && mkdir -p /tmp/triosense && poetry run triosense-edge --config=config/local.webcam.yaml
 
 # ---------- mobile ----------
 

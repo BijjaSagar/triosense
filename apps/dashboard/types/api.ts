@@ -147,3 +147,21 @@ export interface AnnouncementItem {
   played_at: string | null;
   created_at: string | null;
 }
+
+export interface TripwireConfig {
+  line: [[number, number], [number, number]];
+  direction: 'up' | 'down' | 'left' | 'right';
+}
+
+export interface CameraConfig {
+  camera_id: number;
+  location_id: number;
+  edge_device_id: number;
+  name: string;
+  role: 'entry_tripwire' | 'counter_window' | 'density' | 'overview';
+  source_type: 'rtsp' | 'webcam';
+  rtsp_url: string;
+  tripwire: TripwireConfig | null;
+  status: string;
+  last_frame_at: string | null;
+}

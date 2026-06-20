@@ -1,0 +1,32 @@
+# Mac dev webcam demo — Vishnu Nivasam (location_id=1)
+# Requires: docker compose up (EMQX on :1883), camera permission for Terminal/Cursor.
+
+device_uid: edge-vsn-01
+tenant_id: 1
+location_id: 1
+
+inference_fps: 5
+inference_confidence_threshold: 0.4
+inference_backend: cpu
+stream_backend: opencv
+heartbeat_seconds: 5
+buffer_db_path: /tmp/triosense/buffer.sqlite
+model_path: yolov8n.pt
+rtsp_reconnect_seconds: 3.0
+
+mqtt:
+  broker_host: 127.0.0.1
+  broker_port: 1883
+  client_id: edge-vsn-01
+  topic_prefix: triosense
+  tls_enabled: false
+
+cameras:
+  - camera_id: 1
+    name: Mac Webcam Entry
+    role: entry_tripwire
+    source_type: webcam
+    rtsp_url: "0"
+    tripwire:
+      line: [[200, 360], [1080, 360]]
+      direction: down

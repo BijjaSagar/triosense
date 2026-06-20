@@ -38,6 +38,7 @@ final class EdgeConfigService
                     'camera_id' => $camera->camera_id,
                     'name' => $camera->name,
                     'role' => $camera->role,
+                    'source_type' => $camera->source_type ?? 'rtsp',
                     'rtsp_url' => $camera->rtsp_url,
                     'status' => $camera->status,
                 ];

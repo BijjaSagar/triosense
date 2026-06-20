@@ -163,6 +163,7 @@ Response `data`:
       "camera_id": 17,
       "name": "Bhudevi Entry Tripwire",
       "role": "entry_tripwire",
+      "source_type": "rtsp",
       "rtsp_url": "rtsp://...",
       "status": "active",
       "tripwire": { "line": [[640,720],[1280,720]], "direction": "down" }
@@ -172,6 +173,41 @@ Response `data`:
 ```
 
 Tripwire coordinates are stored in `cameras.tripwire_json` (not `config_json`).
+
+#### `GET /locations/{id}/cameras`
+List cameras for a location. Requires Sanctum auth and `location.view` (or tenant admin).
+
+Response `data`:
+```json
+{
+  "cameras": [
+    {
+      "camera_id": 1,
+      "location_id": 1,
+      "edge_device_id": 1,
+      "name": "VSN Mac Webcam Demo",
+      "role": "entry_tripwire",
+      "source_type": "webcam",
+      "rtsp_url": "0",
+      "tripwire": { "line": [[200,360],[1080,360]], "direction": "down" },
+      "status": "active",
+      "last_frame_at": null
+    }
+  ]
+}
+```
+
+#### `PATCH /locations/{id}/cameras/{camera_id}`
+Update camera name, role, source type, RTSP URL / webcam device index, tripwire, or status. Requires `location.manage`. Audit-logged.
+```json
+{
+  "name": "Entry webcam",
+  "source_type": "webcam",
+  "rtsp_url": "0",
+  "role": "entry_tripwire",
+  "tripwire_json": { "line": [[200,360],[1080,360]], "direction": "down" }
+}
+```
 
 #### `POST /edge/{device_uid}/calibrate`
 Edge device uploads a frame; server stores it for the calibration UI.

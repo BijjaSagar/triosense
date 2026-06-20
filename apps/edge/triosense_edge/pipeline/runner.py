@@ -70,6 +70,7 @@ class PipelineRunner:
         tripwire = TripwireDetector(camera.tripwire) if camera.tripwire else None
         stream = RtspStream(
             camera.rtsp_url,
+            source_type=camera.source_type,
             backend=self.config.stream_backend,
             target_fps=self.config.inference_fps,
             reconnect_seconds=self.config.rtsp_reconnect_seconds,

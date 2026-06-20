@@ -267,7 +267,7 @@ components:
 
     EdgeCameraConfig:
       type: object
-      required: [camera_id, name, role, rtsp_url, status]
+      required: [camera_id, name, role, source_type, rtsp_url, status]
       properties:
         camera_id:
           type: integer
@@ -276,12 +276,63 @@ components:
         role:
           type: string
           enum: [entry_tripwire, counter_window, density, overview]
+        source_type:
+          type: string
+          enum: [rtsp, webcam]
         rtsp_url:
           type: string
         status:
           type: string
         tripwire:
           $ref: '#/components/schemas/TripwireConfig'
+
+    CameraConfig:
+      type: object
+      properties:
+        camera_id:
+          type: integer
+        location_id:
+          type: integer
+        edge_device_id:
+          type: integer
+        name:
+          type: string
+        role:
+          type: string
+          enum: [entry_tripwire, counter_window, density, overview]
+        source_type:
+          type: string
+          enum: [rtsp, webcam]
+        rtsp_url:
+          type: string
+        tripwire:
+          $ref: '#/components/schemas/TripwireConfig'
+          nullable: true
+        status:
+          type: string
+        last_frame_at:
+          type: string
+          nullable: true
+
+    UpdateCameraRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        role:
+          type: string
+          enum: [entry_tripwire, counter_window, density, overview]
+        source_type:
+          type: string
+          enum: [rtsp, webcam]
+        rtsp_url:
+          type: string
+        tripwire_json:
+          $ref: '#/components/schemas/TripwireConfig'
+          nullable: true
+        status:
+          type: string
+          enum: [active, degraded, disabled]
 
     EdgeRuntimeConfig:
       type: object
@@ -778,6 +829,76 @@ paths:
       responses:
         '200':
           description: Announcement history
+
+  /locations/{id}/cameras:
+    get:
+      summary: List cameras for a location
+      tags: [Cameras]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Camera list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          cameras:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/CameraConfig'
+
+  /locations/{id}/cameras/{cameraId}:
+    patch:
+      summary: Update camera source, tripwire, or role
+      tags: [Cameras]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: cameraId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCameraRequest'
+      responses:
+        '200':
+          description: Updated camera
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CameraConfig'
+        '401':
+          description: Unauthenticated
+        '404':
+          description: Camera not found
 
   /cross-counter/recommendations:
     get:

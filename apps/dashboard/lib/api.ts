@@ -147,3 +147,38 @@ export async function fetchCrossCounterRecommendations(
 
   return parseResponse(res);
 }
+
+export async function fetchLocationCameras(
+  locationId: number,
+  token: string,
+): Promise<import('@/types/api').CameraConfig[]> {
+  const res = await fetch(`${BASE}/api/v1/locations/${locationId}/cameras`, {
+    headers: authHeaders(token),
+    cache: 'no-store',
+  });
+
+  const data = await parseResponse<{ cameras: import('@/types/api').CameraConfig[] }>(res);
+  return data.cameras;
+}
+
+export async function updateLocationCamera(
+  locationId: number,
+  cameraId: number,
+  token: string,
+  body: {
+    name?: string;
+    role?: string;
+    source_type?: string;
+    rtsp_url?: string;
+    tripwire_json?: import('@/types/api').TripwireConfig | null;
+    status?: string;
+  },
+): Promise<import('@/types/api').CameraConfig> {
+  const res = await fetch(`${BASE}/api/v1/locations/${locationId}/cameras/${cameraId}`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+
+  return parseResponse(res);
+}

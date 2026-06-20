@@ -149,6 +149,7 @@ CREATE TABLE cameras (
     edge_device_id   BIGINT UNSIGNED NOT NULL,
     name             VARCHAR(80) NOT NULL,
     role             ENUM('entry_tripwire','counter_window','density','overview') NOT NULL,
+    source_type      ENUM('rtsp','webcam') NOT NULL DEFAULT 'rtsp',
     rtsp_url         VARCHAR(400) NOT NULL,
     tripwire_json    JSON NULL,                    -- {"line":[[x1,y1],[x2,y2]],"direction":"down"}
     status           ENUM('active','degraded','disabled') NOT NULL DEFAULT 'active',

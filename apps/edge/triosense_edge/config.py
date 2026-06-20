@@ -29,6 +29,7 @@ class CameraConfig(BaseModel):
     camera_id: int
     name: str
     role: Literal["entry_tripwire", "counter_window", "density", "overview"]
+    source_type: Literal["rtsp", "webcam"] = "rtsp"
     rtsp_url: str
     tripwire: TripwireConfig | None = None
 

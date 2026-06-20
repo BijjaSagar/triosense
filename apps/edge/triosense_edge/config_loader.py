@@ -48,6 +48,7 @@ async def fetch_edge_config(device_uid: str, api_key: str, base_url: str) -> Edg
                 camera_id=int(camera["camera_id"]),
                 name=str(camera["name"]),
                 role=camera["role"],
+                source_type=camera.get("source_type", "rtsp"),
                 rtsp_url=str(camera["rtsp_url"]),
                 tripwire=tripwire,
             )

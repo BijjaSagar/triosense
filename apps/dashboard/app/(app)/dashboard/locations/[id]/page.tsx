@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { CrossCounterBanner } from '@/components/locations/cross-counter-banner';
 import { LocationCard } from '@/components/locations/location-card';
@@ -53,7 +54,15 @@ export default function LocationDetailPage() {
 
   return (
     <div className="space-y-6">
-      <CrossCounterBanner />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <CrossCounterBanner />
+        <Link
+          href={`/dashboard/locations/${locationId}/settings`}
+          className="text-sm font-medium text-maroon-700 hover:underline"
+        >
+          Camera settings
+        </Link>
+      </div>
       <ShadowModeBanner mode={state.mode ?? 'live'} />
 
       <div className="flex gap-2 border-b border-border">
