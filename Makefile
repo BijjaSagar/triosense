@@ -1,5 +1,8 @@
 SHELL := /bin/bash
 
+# Prefer Docker Compose V2 plugin; fall back to standalone docker-compose.
+COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
+
 .PHONY: help up down logs ps health restart \
         backend-shell backend-test backend-stan backend-migrate backend-seed \
         dashboard-dev dashboard-build dashboard-test \
@@ -13,24 +16,27 @@ help: ## Show this help
 # ---------- infra ----------
 
 up: ## Start infrastructure (mysql, redis, emqx, mailhog)
-	docker compose up -d mysql redis emqx mailhog
+	$(COMPOSE) up -d mysql redis emqx mailhog
 	@echo "✓ Infra up — waiting for healthchecks..."
-	@docker compose ps
+	@$(COMPOSE) ps
 
 down: ## Stop infrastructure
-	docker compose down
+	$(COMPOSE) down
 
 logs: ## Tail infrastructure logs
-	docker compose logs -f
+	$(COMPOSE) logs -f
 
 ps: ## Show container status
-	docker compose ps
+	$(COMPOSE) ps
 
 health: ## Check service health
 	@echo "MySQL:"
-	@docker compose exec -T mysql mysqladmin -uroot -p$${DB_ROOT_PASSWORD:-rootsecret} ping || true
+	@$(COMPOSE) exec -T mysql mysqladmin -uroot -p$${DB_ROOT_PASSWORD:-rootsecret} ping || true
 	@echo "Redis:"
-	@docker compose exec -T redis redis-cli ping || true
+	@$(COMPOSE) exec -T redis redis-cli ping || true
+	@echo "EMQX:"
+	@$(COMPOSE) exec -T emqx emqx ping || true
+	@echo "Mailhog UI: http://localhost:8025"
 	@echo "EMQX dashboard: http://localhost:18083 (admin/public)"
 
 restart: down up
@@ -99,4 +105,4 @@ mobile-analyze: ## Static analysis
 seed: backend-seed ## Alias
 
 clean: ## Remove all containers and volumes — DESTRUCTIVE
-	docker compose down -v
+	$(COMPOSE) down -v

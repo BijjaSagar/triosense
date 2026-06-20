@@ -53,6 +53,12 @@ services:
       - emqx_data:/opt/emqx/data
       - emqx_log:/opt/emqx/log
       - ./infra/mqtt/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+    healthcheck:
+      test: ["CMD", "emqx", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - triosense
 
@@ -60,9 +66,15 @@ services:
     image: mailhog/mailhog:latest
     container_name: triosense-mailhog
     restart: unless-stopped
+    platform: linux/amd64
     ports:
       - "1025:1025"        # SMTP
       - "8025:8025"        # UI
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - triosense
 

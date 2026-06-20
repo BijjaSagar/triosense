@@ -5,6 +5,8 @@
 !.env.example
 !.env.local.example
 !.env.production.example
+apps/mobile/.env
+apps/edge/.env
 
 # ---------- OS ----------
 .DS_Store
