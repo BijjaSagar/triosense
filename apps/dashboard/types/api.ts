@@ -54,6 +54,8 @@ export interface LocationState {
   location_id: number;
   location_name: string;
   short_code: string;
+  mode?: string;
+  festival_mode?: boolean;
   as_of: string;
   quota: number;
   issued: number;
@@ -98,4 +100,50 @@ export interface LocationStateUpdatedEvent {
   cutoff_position: number | null;
   status: string;
   delta: { cause: string };
+}
+
+export interface CutoffAccuracyDay {
+  date: string;
+  mode: string;
+  predicted_cutoff_position: number | null;
+  actual_closure_position: number | null;
+  delta_positions: number | null;
+  within_tolerance: boolean | null;
+  predicted_at: string;
+  closed_at: string | null;
+  closed_reason: string | null;
+}
+
+export interface CutoffAccuracyReport {
+  location_id: number;
+  from: string;
+  to: string;
+  summary: {
+    days_with_predictions: number;
+    days_within_tolerance: number;
+    median_delta: number | null;
+    max_delta: number | null;
+  };
+  daily: CutoffAccuracyDay[];
+}
+
+export interface CrossCounterRecommendation {
+  source_location_id: number;
+  source_location_name: string;
+  target_location_id: number;
+  target_location_name: string;
+  target_tokens_remaining: number;
+  target_queue_length: number;
+  buffer: number;
+  message: string;
+}
+
+export interface AnnouncementItem {
+  announcement_id: number;
+  language: string;
+  text_played: string;
+  trigger_type: string;
+  status: string;
+  played_at: string | null;
+  created_at: string | null;
 }

@@ -240,7 +240,7 @@
         signageLog('info', 'Reverb connected');
         ws.send(JSON.stringify({
           event: 'pusher:subscribe',
-          data: { channel: `private-signage.${LOCATION_ID}` },
+          data: { channel: `private-location.${LOCATION_ID}` },
         }));
       };
 

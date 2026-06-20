@@ -84,3 +84,66 @@ export async function fetchLocationEvents(
 
   return parseResponse<PaginatedEvents>(res);
 }
+
+export async function fetchCutoffAccuracy(
+  locationId: number,
+  token: string,
+): Promise<import('@/types/api').CutoffAccuracyReport> {
+  const res = await fetch(`${BASE}/api/v1/locations/${locationId}/cutoff-accuracy`, {
+    headers: authHeaders(token),
+    cache: 'no-store',
+  });
+
+  return parseResponse(res);
+}
+
+export async function fetchAnnouncements(
+  locationId: number,
+  token: string,
+): Promise<{ items: import('@/types/api').AnnouncementItem[] }> {
+  const res = await fetch(`${BASE}/api/v1/locations/${locationId}/announcements`, {
+    headers: authHeaders(token),
+    cache: 'no-store',
+  });
+
+  return parseResponse(res);
+}
+
+export async function applyCutoffOverride(
+  locationId: number,
+  token: string,
+  body: { action: string; reason: string; cutoff_position?: number },
+): Promise<LocationState> {
+  const res = await fetch(`${BASE}/api/v1/locations/${locationId}/cutoff/override`, {
+    method: 'POST',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+
+  return parseResponse<LocationState>(res);
+}
+
+export async function updateLocation(
+  locationId: number,
+  token: string,
+  body: { mode?: string; festival_mode?: boolean },
+): Promise<{ location_id: number; mode: string; festival_mode: boolean }> {
+  const res = await fetch(`${BASE}/api/v1/locations/${locationId}`, {
+    method: 'PATCH',
+    headers: authHeaders(token),
+    body: JSON.stringify(body),
+  });
+
+  return parseResponse(res);
+}
+
+export async function fetchCrossCounterRecommendations(
+  token: string,
+): Promise<{ recommendations: import('@/types/api').CrossCounterRecommendation[] }> {
+  const res = await fetch(`${BASE}/api/v1/cross-counter/recommendations`, {
+    headers: authHeaders(token),
+    cache: 'no-store',
+  });
+
+  return parseResponse(res);
+}

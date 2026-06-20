@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { QueueProgressBar } from '@/components/locations/queue-progress-bar';
+import { ShadowModeBanner } from '@/components/locations/shadow-mode-banner';
 import { StatusBadge } from '@/components/locations/status-badge';
 import { useLocationState } from '@/hooks/use-location-state';
 import { cn, isStale } from '@/lib/utils';
@@ -20,6 +21,11 @@ export function LocationCard({ initialState, compact = false }: LocationCardProp
 
   return (
     <Card className={cn(compact && 'p-4')}>
+      {state.mode === 'shadow' && (
+        <div className="mb-3">
+          <ShadowModeBanner mode={state.mode} />
+        </div>
+      )}
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-lg font-bold text-maroon-700">

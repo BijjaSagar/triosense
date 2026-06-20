@@ -48,6 +48,8 @@ final class LocationStateService
             'location_id' => $locationId,
             'location_name' => $location->name,
             'short_code' => $location->short_code,
+            'mode' => $location->mode,
+            'festival_mode' => (bool) $location->festival_mode,
             'as_of' => $liveState->now->toIso8601String(),
             'quota' => $liveState->quota,
             'issued' => $liveState->issued,
