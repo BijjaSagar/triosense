@@ -31,12 +31,20 @@ ps: ## Show container status
 	$(COMPOSE) ps
 
 health: ## Check service health
+	@echo "=== Container status ==="
+	@$(COMPOSE) ps
 	@echo "MySQL:"
-	@$(COMPOSE) exec -T mysql mysqladmin -uroot -p$${DB_ROOT_PASSWORD:-rootsecret} ping || true
+	@if $(COMPOSE) ps --status running -q mysql 2>/dev/null | grep -q .; then \
+		$(COMPOSE) exec -T mysql mysqladmin -uroot -p$${DB_ROOT_PASSWORD:-rootsecret} ping; \
+	else echo "  skip — mysql container not running (run: make up)"; fi
 	@echo "Redis:"
-	@$(COMPOSE) exec -T redis redis-cli ping || true
+	@if $(COMPOSE) ps --status running -q redis 2>/dev/null | grep -q .; then \
+		$(COMPOSE) exec -T redis redis-cli ping; \
+	else echo "  skip — redis container not running (if port 6379 is taken, set REDIS_PORT=6380 in .env)"; fi
 	@echo "EMQX:"
-	@$(COMPOSE) exec -T emqx emqx ping || true
+	@if $(COMPOSE) ps --status running -q emqx 2>/dev/null | grep -q .; then \
+		$(COMPOSE) exec -T emqx emqx ping; \
+	else echo "  skip — emqx container not running (run: make up)"; fi
 	@echo "Mailhog UI: http://localhost:8025"
 	@echo "EMQX dashboard: http://localhost:18083 (admin/public)"
 
