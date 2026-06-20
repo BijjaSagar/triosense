@@ -55,6 +55,26 @@ final class LocationPolicy
         return false;
     }
 
+    public function override(User $user, Location $location): bool
+    {
+        Log::debug('LocationPolicy.override', [
+            'user_id' => $user->user_id,
+            'location_id' => $location->location_id,
+        ]);
+
+        if ((int) $user->tenant_id !== (int) $location->tenant_id) {
+            return false;
+        }
+
+        setPermissionsTeamId($user->tenant_id);
+
+        if ($user->can('location.override')) {
+            return $this->view($user, $location);
+        }
+
+        return false;
+    }
+
     private function isTenantAdmin(User $user): bool
     {
         setPermissionsTeamId($user->tenant_id);

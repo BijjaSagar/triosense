@@ -30,6 +30,7 @@ final class FifoTickService
         private readonly LiveStateReader $liveStateReader,
         private readonly CutoffCalculator $calculator,
         private readonly LocationRedisStateWriter $redisWriter,
+        private readonly FifoTickSideEffectHandler $sideEffects,
     ) {
     }
 
@@ -69,8 +70,17 @@ final class FifoTickService
 
         $this->redisWriter->apply($locationId, $decision, $state);
 
+        $cutoffEvent = null;
+
         if ($previous->statusChanged($decision->status)) {
-            $this->persistCutoffEvent($location, $previous->status, $decision, $state, $decidedAt);
+            $cutoffEvent = $this->persistCutoffEvent($location, $previous->status, $decision, $state, $decidedAt);
+            $this->sideEffects->handleStatusTransition(
+                $location,
+                $previous->status,
+                $decision,
+                $state,
+                $cutoffEvent,
+            );
         }
 
         if ($previous->shouldBroadcast($decision, $state)) {
@@ -104,7 +114,7 @@ final class FifoTickService
         Decision $decision,
         LiveState $state,
         CarbonImmutable $decidedAt,
-    ): void {
+    ): CutoffEvent {
         $eventMode = $location->mode === Mode::LIVE->value ? 'live' : 'shadow';
 
         $record = CutoffEvent::query()->create([
@@ -130,5 +140,7 @@ final class FifoTickService
             'previous_status' => $previousStatus->value,
             'new_status' => $decision->status->value,
         ]);
+
+        return $record;
     }
 }

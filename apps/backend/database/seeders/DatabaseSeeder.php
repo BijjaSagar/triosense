@@ -18,6 +18,7 @@ final class DatabaseSeeder extends Seeder
         $this->seedEdgeDevices();
         $this->seedOperatorUser();
         $this->seedDailyQuotas();
+        $this->call(AnnouncementTemplateSeeder::class);
     }
 
     private function seedTenantAndLocations(): void

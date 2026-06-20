@@ -16,5 +16,24 @@ return [
     'fifo' => [
         'tick_interval_ms' => (int) env('TRIOSENSE_FIFO_TICK_INTERVAL_MS', 1000),
         'default_mode' => env('TRIOSENSE_FIFO_DEFAULT_MODE', 'shadow'),
+        'festival_tick_interval_ms' => (int) env('TRIOSENSE_FIFO_FESTIVAL_TICK_INTERVAL_MS', 500),
+    ],
+
+    'pa' => [
+        'controller_url' => env('TRIOSENSE_PA_CONTROLLER_URL'),
+        'default_audio_path' => env('TRIOSENSE_PA_DEFAULT_AUDIO_PATH', '/var/lib/triosense/pa/default.mp3'),
+        'tts_provider' => env('TRIOSENSE_PA_TTS_PROVIDER', 'stub'),
+    ],
+
+    'fcm' => [
+        'server_key' => env('TRIOSENSE_FCM_SERVER_KEY'),
+    ],
+
+    'cross_counter' => [
+        'buffer' => (int) env('TRIOSENSE_CROSS_COUNTER_BUFFER', 50),
+    ],
+
+    'sentry' => [
+        'dsn' => env('SENTRY_LARAVEL_DSN'),
     ],
 ];
