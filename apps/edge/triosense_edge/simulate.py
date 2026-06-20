@@ -195,7 +195,7 @@ async def _async_main(args: argparse.Namespace) -> int:
     device_uid = args.device_uid or f"edge-sim-{args.location_id:02d}"
 
     client = mqtt.Client(
-        callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
+        callback_api_version=mqtt.CallbackAPIVersion.VERSION2,  # type: ignore[attr-defined]
         client_id=f"triosense-simulate-{uuid.uuid4().hex[:8]}",
         transport="tcp",
     )

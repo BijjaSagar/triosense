@@ -32,6 +32,7 @@ types-PyYAML = "^6.0.12"
 [tool.poetry.scripts]
 triosense-edge = "triosense_edge.__main__:main"
 triosense-edge-simulate = "triosense_edge.simulate:main"
+triosense-edge-calibrate = "triosense_edge.calibration.server:main"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
@@ -45,6 +46,10 @@ target-version = "py311"
 select = ["E", "F", "I", "N", "UP", "B", "SIM", "ASYNC"]
 ignore = []
 
+[tool.ruff.lint.per-file-ignores]
+"triosense_edge/calibration/server.py" = ["E501"]
+"triosense_edge/simulate.py" = ["UP017", "UP041", "SIM105"]
+
 [tool.mypy]
 python_version = "3.11"
 strict = true
@@ -52,6 +57,10 @@ warn_return_any = true
 disallow_untyped_defs = true
 disallow_any_generics = true
 no_implicit_optional = true
+
+[[tool.mypy.overrides]]
+module = ["ultralytics.*", "cv2.*", "paho.mqtt.*"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

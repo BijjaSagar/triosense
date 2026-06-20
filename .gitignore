@@ -70,6 +70,7 @@ apps/mobile/coverage/
 
 # ---------- Edge (Python) ----------
 apps/edge/__pycache__/
+apps/edge/**/__pycache__/
 apps/edge/*.pyc
 apps/edge/.venv/
 apps/edge/venv/

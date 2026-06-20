@@ -6,7 +6,7 @@ COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compos
 .PHONY: help up down logs ps health restart \
         backend-shell backend-test backend-stan backend-migrate backend-seed \
         dashboard-dev dashboard-build dashboard-test dashboard-lint \
-        edge-test edge-lint \
+        edge-test edge-lint edge-pipeline edge-calibrate \
         mobile-test mobile-analyze \
         test lint \
         seed clean
@@ -95,6 +95,12 @@ edge-lint: ## Ruff + mypy
 
 edge-simulate: ## Run a synthetic event publisher (location 1 by default)
 	cd apps/edge && poetry run python -m triosense_edge.simulate --location-id=1
+
+edge-pipeline: ## Run vision pipeline in mock mode (location 3 example config)
+	cd apps/edge && poetry run triosense-edge --config=config/location_3.example.yaml
+
+edge-calibrate: ## Tripwire calibration web UI on :8765
+	cd apps/edge && poetry run triosense-edge-calibrate --config=config/location_3.example.yaml --port=8765
 
 # ---------- mobile ----------
 

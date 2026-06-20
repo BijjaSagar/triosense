@@ -7,6 +7,8 @@ location_id: 3
 
 inference_fps: 15
 inference_confidence_threshold: 0.5
+inference_backend: mock
+stream_backend: mock
 heartbeat_seconds: 5
 buffer_db_path: /var/lib/triosense/buffer.sqlite
 
@@ -14,6 +16,8 @@ mqtt:
   broker_host: mqtt.triosense.in
   broker_port: 8883
   client_id: edge-bdv-01
+  topic_prefix: triosense
+  tls_enabled: true
   tls_cert_path: /etc/triosense/certs/edge-bdv-01.crt
   tls_key_path: /etc/triosense/certs/edge-bdv-01.key
   tls_ca_path: /etc/triosense/certs/ca.crt
