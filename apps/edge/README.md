@@ -8,6 +8,8 @@ Computer vision service that runs on NVIDIA Jetson Orin Nano at each TTD counter
 cd apps/edge
 poetry install
 poetry run triosense-edge-simulate --location-id=1
+# or equivalently:
+poetry run python -m triosense_edge.simulate --location-id=1
 ```
 
 This publishes synthetic ENTER/EXIT/ISSUE events to the MQTT broker at ~1 event/sec, as if a real camera were detecting people. Use it to drive the backend FIFO loop without hardware.

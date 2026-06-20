@@ -15,6 +15,7 @@ final class DatabaseSeeder extends Seeder
     {
         $this->seedTenantAndLocations();
         $this->call(RolePermissionSeeder::class);
+        $this->seedEdgeDevices();
         $this->seedOperatorUser();
         $this->seedDailyQuotas();
     }
@@ -87,6 +88,32 @@ final class DatabaseSeeder extends Seeder
                 'updated_at' => now(),
             ],
         ]);
+    }
+
+    private function seedEdgeDevices(): void
+    {
+        $devices = [
+            ['edge_device_id' => 1, 'location_id' => 1, 'device_uid' => 'edge-sim-01', 'short' => 'VSN'],
+            ['edge_device_id' => 2, 'location_id' => 2, 'device_uid' => 'edge-sim-02', 'short' => 'SRN'],
+            ['edge_device_id' => 3, 'location_id' => 3, 'device_uid' => 'edge-sim-03', 'short' => 'BDV'],
+        ];
+
+        foreach ($devices as $device) {
+            DB::table('edge_devices')->insertOrIgnore([
+                'edge_device_id' => $device['edge_device_id'],
+                'tenant_id' => 1,
+                'location_id' => $device['location_id'],
+                'device_uid' => $device['device_uid'],
+                'hardware_id' => 'sim-'.$device['short'],
+                'ip_address' => '127.0.0.1',
+                'firmware_version' => '0.1.0-sim',
+                'last_heartbeat_at' => null,
+                'status' => 'offline',
+                'config_json' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 
     private function seedOperatorUser(): void
