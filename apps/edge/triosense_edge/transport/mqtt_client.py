@@ -118,6 +118,11 @@ class MqttClient:
             return len(published_ids)
 
     @property
+    def paho_client(self) -> mqtt.Client:
+        """Underlying paho client for subscriptions (e.g. command topics)."""
+        return self._client
+
+    @property
     def topic_prefix(self) -> str:
         return self._config.topic_prefix
 

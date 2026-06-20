@@ -14,6 +14,7 @@ from pathlib import Path
 from triosense_edge.config_loader import export_model, fetch_edge_config, load_config
 from triosense_edge.pipeline.runner import PipelineRunner
 from triosense_edge.transport.buffer import EventBuffer
+from triosense_edge.transport.command_subscriber import CommandSubscriber
 from triosense_edge.transport.mqtt_client import MqttClient
 
 log = logging.getLogger(__name__)
@@ -32,6 +33,18 @@ async def _run_pipeline(config_path: Path | None, fetch_from_api: bool) -> int:
     await buffer.initialize()
     mqtt = MqttClient(config.mqtt, buffer)
     await mqtt.connect()
+
+    command_sub = CommandSubscriber(
+        config.mqtt,
+        location_id=config.location_id,
+        device_uid=config.device_uid,
+    )
+    command_sub.attach(mqtt.paho_client)
+    log.info(
+        "command subscriber armed topic=%s entry_closed=%s",
+        command_sub.topic(),
+        command_sub.entry_closed,
+    )
 
     runner = PipelineRunner(config=config, mqtt=mqtt)
     await runner.start()
