@@ -1,0 +1,257 @@
+---
+description: Edge (Python 3.11) computer vision conventions for TrioSense
+globs: apps/edge/**/*.py
+alwaysApply: false
+---
+
+# Edge (Python 3.11) Conventions
+
+The edge service runs on NVIDIA Jetson Orin Nano at each counter location. It pulls RTSP streams, runs YOLOv8 + ByteTrack, detects tripwire crossings, and publishes events via MQTT.
+
+## Tooling
+- Python 3.11+, type hints everywhere
+- Poetry for dependency management
+- Ruff for linting + formatting (no Black, no isort separately)
+- mypy --strict
+- pytest for tests
+- Pydantic v2 for config and message validation
+- asyncio for I/O concurrency
+
+## Folder structure
+
+```
+apps/edge/
+├── pyproject.toml
+├── triosense_edge/
+│   ├── __init__.py
+│   ├── __main__.py                          entrypoint
+│   ├── config.py                            Pydantic models
+│   ├── pipeline/
+│   │   ├── __init__.py
+│   │   ├── runner.py                        orchestrator
+│   │   ├── stream.py                        RTSP via GStreamer
+│   │   ├── detector.py                      YOLOv8 inference
+│   │   ├── tracker.py                       ByteTrack wrapper
+│   │   └── tripwire.py                      line-crossing detection
+│   ├── transport/
+│   │   ├── mqtt_client.py                   paho-mqtt async wrapper
+│   │   ├── buffer.py                        local SQLite event buffer
+│   │   └── schemas.py                       MQTT message schemas (Pydantic)
+│   ├── calibration/
+│   │   └── server.py                        local web UI for tripwire drawing
+│   └── simulate.py                          synthetic event publisher (dev)
+├── tests/
+│   ├── conftest.py
+│   ├── unit/
+│   └── integration/
+└── config/
+    └── location_3.example.yaml
+```
+
+## Config pattern
+
+```python
+# triosense_edge/config.py
+from pathlib import Path
+from typing import Literal
+
+import yaml
+from pydantic import BaseModel, Field, IPvAnyAddress
+
+
+class TripwireConfig(BaseModel):
+    line: tuple[tuple[int, int], tuple[int, int]]
+    direction: Literal["up", "down", "left", "right"]
+
+
+class CameraConfig(BaseModel):
+    camera_id: int
+    name: str
+    role: Literal["entry_tripwire", "counter_window", "density", "overview"]
+    rtsp_url: str
+    tripwire: TripwireConfig | None = None
+
+
+class MqttConfig(BaseModel):
+    broker_host: str
+    broker_port: int = 8883
+    client_id: str
+    tls_cert_path: Path
+    tls_key_path: Path
+    tls_ca_path: Path
+
+
+class EdgeConfig(BaseModel):
+    device_uid: str = Field(pattern=r"^edge-[a-z]{3}-\d{2}$")
+    tenant_id: int
+    location_id: int
+    cameras: list[CameraConfig]
+    mqtt: MqttConfig
+    heartbeat_seconds: int = 5
+    inference_fps: int = 15
+    inference_confidence_threshold: float = Field(0.5, ge=0.0, le=1.0)
+    buffer_db_path: Path = Path("/var/lib/triosense/buffer.sqlite")
+
+    @classmethod
+    def from_yaml(cls, path: Path) -> "EdgeConfig":
+        with path.open() as f:
+            return cls.model_validate(yaml.safe_load(f))
+```
+
+## Pipeline pattern
+
+```python
+# triosense_edge/pipeline/runner.py
+import asyncio
+import logging
+from contextlib import asynccontextmanager
+
+from triosense_edge.config import EdgeConfig
+from triosense_edge.pipeline.detector import YoloDetector
+from triosense_edge.pipeline.stream import RtspStream
+from triosense_edge.pipeline.tracker import ByteTracker
+from triosense_edge.pipeline.tripwire import TripwireDetector
+from triosense_edge.transport.mqtt_client import MqttClient
+
+log = logging.getLogger(__name__)
+
+
+class PipelineRunner:
+    def __init__(self, config: EdgeConfig, mqtt: MqttClient) -> None:
+        self._config = config
+        self._mqtt = mqtt
+        self._detector = YoloDetector()
+        self._tasks: list[asyncio.Task[None]] = []
+
+    async def start(self) -> None:
+        for camera in self._config.cameras:
+            task = asyncio.create_task(
+                self._process_camera(camera),
+                name=f"camera-{camera.camera_id}",
+            )
+            self._tasks.append(task)
+
+    async def stop(self) -> None:
+        for task in self._tasks:
+            task.cancel()
+        await asyncio.gather(*self._tasks, return_exceptions=True)
+
+    async def _process_camera(self, camera) -> None:
+        tracker = ByteTracker()
+        tripwire = TripwireDetector(camera.tripwire) if camera.tripwire else None
+
+        async with RtspStream(camera.rtsp_url) as stream:
+            async for frame in stream:
+                detections = self._detector.detect(frame)
+                tracks = tracker.update(detections)
+
+                if tripwire:
+                    for event in tripwire.process(tracks, frame.timestamp):
+                        await self._publish_event(camera, event)
+
+    async def _publish_event(self, camera, event) -> None:
+        # ... publish to MQTT
+        ...
+```
+
+## MQTT publishing
+
+```python
+# triosense_edge/transport/mqtt_client.py
+import asyncio
+import json
+import logging
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+
+from paho.mqtt import client as mqtt
+from pydantic import BaseModel
+
+from triosense_edge.config import MqttConfig
+from triosense_edge.transport.buffer import EventBuffer
+
+log = logging.getLogger(__name__)
+
+
+class MqttClient:
+    def __init__(self, config: MqttConfig, buffer: EventBuffer) -> None:
+        self._config = config
+        self._buffer = buffer
+        self._client = mqtt.Client(client_id=config.client_id, transport="tcp")
+        self._client.tls_set(
+            ca_certs=str(config.tls_ca_path),
+            certfile=str(config.tls_cert_path),
+            keyfile=str(config.tls_key_path),
+        )
+        self._connected = asyncio.Event()
+
+    async def connect(self) -> None:
+        self._client.on_connect = lambda *_: self._connected.set()
+        self._client.connect(self._config.broker_host, self._config.broker_port)
+        self._client.loop_start()
+        await self._connected.wait()
+
+    async def publish(self, topic: str, payload: BaseModel, qos: int = 1) -> None:
+        message = json.dumps(payload.model_dump(mode="json"))
+        info = self._client.publish(topic, message, qos=qos)
+        if info.rc != mqtt.MQTT_ERR_SUCCESS:
+            log.warning("publish failed, buffering: %s", topic)
+            await self._buffer.append(topic, message)
+```
+
+## Local buffer
+
+If MQTT is unreachable, events go to SQLite. On reconnect, the buffer is drained in `occurred_at` order.
+
+```python
+# triosense_edge/transport/buffer.py
+import aiosqlite
+from pathlib import Path
+
+
+class EventBuffer:
+    def __init__(self, db_path: Path) -> None:
+        self._db_path = db_path
+
+    async def initialize(self) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS buffered_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    topic TEXT NOT NULL,
+                    payload TEXT NOT NULL,
+                    queued_at REAL NOT NULL DEFAULT (julianday('now'))
+                )
+            """)
+            await db.commit()
+
+    async def append(self, topic: str, payload: str) -> None:
+        async with aiosqlite.connect(self._db_path) as db:
+            await db.execute(
+                "INSERT INTO buffered_events (topic, payload) VALUES (?, ?)",
+                (topic, payload),
+            )
+            await db.commit()
+
+    async def drain(self) -> list[tuple[int, str, str]]:
+        async with aiosqlite.connect(self._db_path) as db:
+            cursor = await db.execute(
+                "SELECT id, topic, payload FROM buffered_events ORDER BY id LIMIT 500"
+            )
+            return await cursor.fetchall()
+```
+
+## Logging
+
+- Always use `logging.getLogger(__name__)`.
+- Log at INFO for state changes, WARNING for recoverable issues, ERROR for failures.
+- Never `print()`.
+
+## What NOT to do
+
+- ❌ Don't use `print()` — use the logger
+- ❌ Don't block the event loop with `time.sleep()` (use `await asyncio.sleep()`)
+- ❌ Don't catch `Exception:` without re-raising or logging
+- ❌ Don't write inference code that only runs on CPU — Jetson uses TensorRT
+- ❌ Don't hardcode RTSP URLs in code — they come from config
+- ❌ Don't store camera frames to disk in production (debug buffer only, env-gated)

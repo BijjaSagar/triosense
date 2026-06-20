@@ -1,0 +1,193 @@
+---
+description: Laravel 11 backend conventions for TrioSense
+globs: apps/backend/**/*.php
+alwaysApply: false
+---
+
+# Backend (Laravel 11) Conventions
+
+## PHP & tooling
+- PHP 8.3, strict types (`declare(strict_types=1);` at the top of every file).
+- PHPStan level 8. No baselines, no `@phpstan-ignore`.
+- Pest for tests, not PHPUnit syntax.
+- Pint for formatting (`vendor/bin/pint`).
+
+## Folder structure
+```
+apps/backend/
+├── app/
+│   ├── Domain/                  Pure domain logic, no I/O
+│   │   ├── Fifo/                CutoffCalculator, LiveState, Decision
+│   │   ├── Queue/               Queue position arithmetic
+│   │   └── Announcement/        Template rendering
+│   ├── Http/
+│   │   ├── Controllers/Api/V1/  Thin controllers, one action per method
+│   │   ├── Requests/            Form request validation
+│   │   ├── Resources/           API response shaping + ApiResponse trait
+│   │   └── Middleware/
+│   ├── Jobs/                    Queue jobs (idempotent, retry-aware)
+│   ├── Models/                  Eloquent models
+│   ├── Mqtt/                    MQTT subscriber + handlers
+│   ├── Broadcasting/            Reverb events
+│   ├── Services/                Cross-cutting services (AuditLogger, etc.)
+│   ├── Policies/                Authorization policies
+│   └── Console/Commands/        Artisan commands
+├── database/
+│   ├── migrations/              Timestamped, append-only
+│   ├── seeders/                 Idempotent seeders
+│   └── factories/               Model factories for tests
+├── routes/
+│   ├── api.php                  Versioned: /api/v1/...
+│   └── channels.php             Reverb channel auth
+├── scripts/lua/                 Redis Lua scripts
+└── tests/
+    ├── Feature/                 Full-stack tests
+    └── Unit/                    Domain tests
+```
+
+## Controller pattern
+
+Controllers MUST be thin. Domain logic lives in `App\Domain\*` or `App\Services\*`.
+
+```php
+<?php declare(strict_types=1);
+
+namespace App\Http\Controllers\Api\V1;
+
+use App\Http\Controllers\Controller;
+use App\Http\Requests\UpdateQuotaRequest;
+use App\Http\Resources\LocationStateResource;
+use App\Services\QuotaService;
+use Illuminate\Http\JsonResponse;
+
+final class QuotaController extends Controller
+{
+    public function __construct(private readonly QuotaService $quotas) {}
+
+    public function update(UpdateQuotaRequest $request, int $locationId): JsonResponse
+    {
+        $state = $this->quotas->updateQuota(
+            tenantId: $request->user()->tenant_id,
+            locationId: $locationId,
+            quotaDate: $request->validated('quota_date'),
+            quota: $request->validated('quota'),
+            actor: $request->user(),
+        );
+
+        return LocationStateResource::make($state)->response();
+    }
+}
+```
+
+## Model pattern
+
+Strict `$fillable`, `$casts`, and `BelongsToTenant` where applicable.
+
+```php
+<?php declare(strict_types=1);
+
+namespace App\Models;
+
+use App\Models\Concerns\BelongsToTenant;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+final class Location extends Model
+{
+    use BelongsToTenant;
+
+    protected $primaryKey = 'location_id';
+
+    protected $fillable = [
+        'tenant_id', 'name', 'short_code', 'address',
+        'latitude', 'longitude', 'opens_at', 'closes_at',
+        'default_quota', 'mode', 'festival_mode', 'status',
+    ];
+
+    protected $casts = [
+        'latitude'      => 'decimal:7',
+        'longitude'     => 'decimal:7',
+        'default_quota' => 'integer',
+        'festival_mode' => 'boolean',
+    ];
+
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class, 'tenant_id', 'tenant_id');
+    }
+
+    public function quotas(): HasMany
+    {
+        return $this->hasMany(DailyQuota::class, 'location_id', 'location_id');
+    }
+}
+```
+
+## Migrations
+
+```php
+<?php declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration {
+    public function up(): void
+    {
+        Schema::create('locations', function (Blueprint $table) {
+            $table->bigIncrements('location_id');
+            $table->unsignedBigInteger('tenant_id');
+            $table->string('name', 120);
+            $table->string('short_code', 20);
+            // ... rest of columns
+            $table->timestamps();
+
+            $table->unique(['tenant_id', 'short_code'], 'uq_locations_tenant_code');
+            $table->index('tenant_id', 'idx_locations_tenant');
+
+            $table->foreign('tenant_id', 'fk_locations_tenant')
+                ->references('tenant_id')->on('tenants')
+                ->restrictOnDelete();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('locations');
+    }
+};
+```
+
+## Test pattern (Pest)
+
+```php
+<?php declare(strict_types=1);
+
+use App\Domain\Fifo\CutoffCalculator;
+use App\Domain\Fifo\LiveState;
+
+it('declares cutoff when queue length exceeds remaining tokens', function () {
+    $state = new LiveState(
+        quota: 5000, issued: 3840,
+        queueHead: 3841, queueTail: 5210,
+        issuanceRatePerMin: 18.4, arrivalRatePerMin: 22.1,
+    );
+
+    $decision = (new CutoffCalculator())->decide($state);
+
+    expect($decision->status)->toBe('cutoff_declared');
+    expect($decision->cutoff)->toBe(5000);
+});
+```
+
+## What NOT to do
+
+- ❌ Don't put FIFO logic in a controller or job
+- ❌ Don't call external HTTP from a request handler — always queue
+- ❌ Don't bypass `ApiResponse` envelope
+- ❌ Don't use `dd()`, `var_dump()`, `print_r()` in committed code
+- ❌ Don't add a job without making it idempotent
+- ❌ Don't modify a deployed migration
+- ❌ Don't query an operational table without `tenant_id` scope

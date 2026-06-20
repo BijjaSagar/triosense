@@ -1,0 +1,29 @@
+* text=auto eol=lf
+
+*.php diff=php
+*.blade.php diff=php
+*.js diff=js
+*.jsx diff=jsx
+*.ts diff=ts
+*.tsx diff=tsx
+*.dart diff=dart
+*.py diff=python
+*.sql diff=sql
+*.md diff=markdown
+*.yaml diff=yaml
+*.yml diff=yaml
+*.json diff=json
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.engine binary
+*.pt binary
+*.onnx binary

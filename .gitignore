@@ -1,0 +1,98 @@
+# ---------- environment ----------
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.local.example
+!.env.production.example
+
+# ---------- OS ----------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---------- editors ----------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ---------- logs & runtime ----------
+*.log
+*.pid
+logs/
+
+# ---------- Laravel backend ----------
+apps/backend/vendor/
+apps/backend/node_modules/
+apps/backend/storage/app/private/
+apps/backend/storage/app/public/
+apps/backend/storage/framework/cache/
+apps/backend/storage/framework/sessions/
+apps/backend/storage/framework/views/
+apps/backend/storage/logs/
+apps/backend/public/hot
+apps/backend/public/storage
+apps/backend/public/build/
+apps/backend/.phpunit.cache/
+apps/backend/.phpunit.result.cache
+apps/backend/auth.json
+
+# ---------- Next.js dashboard ----------
+apps/dashboard/node_modules/
+apps/dashboard/.next/
+apps/dashboard/out/
+apps/dashboard/build/
+apps/dashboard/.turbo/
+apps/dashboard/coverage/
+apps/dashboard/.vercel/
+
+# ---------- Flutter mobile ----------
+apps/mobile/.dart_tool/
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+apps/mobile/.packages
+apps/mobile/.pub-cache/
+apps/mobile/.pub/
+apps/mobile/build/
+apps/mobile/ios/Pods/
+apps/mobile/ios/.symlinks/
+apps/mobile/ios/Flutter/ephemeral/
+apps/mobile/android/.gradle/
+apps/mobile/android/app/release/
+apps/mobile/android/local.properties
+apps/mobile/coverage/
+
+# ---------- Edge (Python) ----------
+apps/edge/__pycache__/
+apps/edge/*.pyc
+apps/edge/.venv/
+apps/edge/venv/
+apps/edge/.mypy_cache/
+apps/edge/.pytest_cache/
+apps/edge/.ruff_cache/
+apps/edge/dist/
+apps/edge/*.egg-info/
+apps/edge/poetry.lock
+apps/edge/var/
+
+# ---------- ML weights ----------
+*.pt
+*.onnx
+*.engine
+apps/edge/models/
+
+# ---------- infra & secrets ----------
+infra/secrets/
+infra/certs/
+*.pem
+*.key
+*.crt
+!infra/mqtt/dev-*.pem
+
+# ---------- docker ----------
+docker-compose.override.yml
+
+# ---------- generated ----------
+docs/api/openapi.yaml

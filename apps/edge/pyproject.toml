@@ -1,0 +1,58 @@
+[tool.poetry]
+name = "triosense-edge"
+version = "0.1.0"
+description = "TrioSense — Edge inference service for TTD SSD counters. Runs on Jetson Orin Nano."
+authors = ["Triounity Technologies <eng@triounity.in>"]
+license = "Proprietary"
+readme = "README.md"
+packages = [{ include = "triosense_edge" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+# Pinned for Jetson JetPack 6 compatibility — do NOT bump without testing on hardware
+ultralytics = "8.3.0"
+paho-mqtt = "^2.1.0"
+pydantic = "^2.9.0"
+pyyaml = "^6.0.2"
+aiosqlite = "^0.20.0"
+opencv-python-headless = "^4.10.0"
+numpy = "^1.26.0"
+fastapi = "^0.115.0"
+uvicorn = "^0.32.0"
+httpx = "^0.27.0"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.7.0"
+mypy = "^1.13.0"
+pytest = "^8.3.0"
+pytest-asyncio = "^0.24.0"
+pytest-cov = "^5.0.0"
+types-PyYAML = "^6.0.12"
+
+[tool.poetry.scripts]
+triosense-edge = "triosense_edge.__main__:main"
+triosense-edge-simulate = "triosense_edge.simulate:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "ASYNC"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+disallow_untyped_defs = true
+disallow_any_generics = true
+no_implicit_optional = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

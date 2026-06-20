@@ -1,0 +1,45 @@
+# TrioSense Edge config — example for Bhudevi Complex (location_id=3)
+# Copy to /etc/triosense/edge.yaml on the Jetson and adjust per site.
+
+device_uid: edge-bdv-01
+tenant_id: 1
+location_id: 3
+
+inference_fps: 15
+inference_confidence_threshold: 0.5
+heartbeat_seconds: 5
+buffer_db_path: /var/lib/triosense/buffer.sqlite
+
+mqtt:
+  broker_host: mqtt.triosense.in
+  broker_port: 8883
+  client_id: edge-bdv-01
+  tls_cert_path: /etc/triosense/certs/edge-bdv-01.crt
+  tls_key_path: /etc/triosense/certs/edge-bdv-01.key
+  tls_ca_path: /etc/triosense/certs/ca.crt
+
+cameras:
+  - camera_id: 17
+    name: Bhudevi Entry Tripwire
+    role: entry_tripwire
+    rtsp_url: rtsp://admin:CHANGE_ME@10.50.3.11:554/Streaming/Channels/101
+    tripwire:
+      # Pixel coordinates of the imaginary line. People crossing in 'direction' count as IN.
+      line: [[640, 720], [1280, 720]]
+      direction: down
+
+  - camera_id: 18
+    name: Bhudevi Counter Window
+    role: counter_window
+    rtsp_url: rtsp://admin:CHANGE_ME@10.50.3.12:554/Streaming/Channels/101
+    # No tripwire needed — counter event detection uses a different model
+
+  - camera_id: 19
+    name: Bhudevi Density (cross-check)
+    role: density
+    rtsp_url: rtsp://admin:CHANGE_ME@10.50.3.13:554/Streaming/Channels/101
+
+  - camera_id: 20
+    name: Bhudevi Overview (audit)
+    role: overview
+    rtsp_url: rtsp://admin:CHANGE_ME@10.50.3.14:554/Streaming/Channels/101

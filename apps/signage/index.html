@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrioSense Signage</title>
+  <style>
+    :root {
+      --bg: #0d0608;
+      --maroon: #6D1A2C;
+      --gold: #D4A437;
+      --cream: #FAF7F2;
+      --green: #2C7A4B;
+      --amber: #D49B37;
+      --red: #B22222;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--cream);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-weight: 700;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 4vh 4vw;
+      letter-spacing: 0.01em;
+    }
+
+    .brand {
+      position: absolute;
+      top: 2vh;
+      left: 2vw;
+      font-size: 1.6vh;
+      letter-spacing: 0.25em;
+      color: var(--gold);
+      opacity: 0.7;
+      text-transform: uppercase;
+    }
+
+    .timestamp {
+      position: absolute;
+      top: 2vh;
+      right: 2vw;
+      font-size: 1.6vh;
+      color: var(--cream);
+      opacity: 0.5;
+    }
+
+    .status-pill {
+      font-size: 2.4vh;
+      padding: 1vh 2.4vh;
+      border-radius: 100px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      margin-bottom: 4vh;
+    }
+    .status-open      { background: var(--green); color: var(--cream); }
+    .status-approach  { background: var(--amber); color: var(--bg); }
+    .status-cutoff    { background: var(--red);   color: var(--cream); }
+    .status-closed    { background: #444;         color: var(--cream); }
+
+    .headline {
+      font-size: 5vh;
+      line-height: 1.15;
+      margin-bottom: 2vh;
+      color: var(--gold);
+    }
+
+    .big-number {
+      font-size: 28vh;
+      line-height: 0.95;
+      color: var(--cream);
+      margin-bottom: 2vh;
+    }
+
+    .label {
+      font-size: 3vh;
+      font-weight: 500;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--cream);
+      opacity: 0.85;
+    }
+
+    .stale-banner {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--red);
+      color: var(--cream);
+      font-size: 2vh;
+      padding: 1.5vh;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      display: none;
+    }
+    .stale-banner.active { display: block; }
+  </style>
+</head>
+<body>
+
+  <div class="brand" id="brand">TrioSense · TTD · Bhudevi</div>
+  <div class="timestamp" id="ts">--:--:--</div>
+
+  <div class="status-pill status-open" id="status">Open</div>
+  <div class="headline" id="headline">Tokens remaining today</div>
+  <div class="big-number" id="number">—</div>
+  <div class="label" id="label">Tokens available</div>
+
+  <div class="stale-banner" id="stale">Reconnecting to operations centre…</div>
+
+  <script>
+    // -------- configuration (override via URL hash) --------
+    // Usage: load signage.html#location_id=3
+    const params = new URLSearchParams(window.location.hash.slice(1));
+    const LOCATION_ID = parseInt(params.get('location_id') || '3', 10);
+    const REVERB_KEY = params.get('key') || 'trioseanse-local-key';
+    const REVERB_HOST = params.get('host') || window.location.hostname;
+    const REVERB_PORT = params.get('port') || '8080';
+    const REVERB_SCHEME = params.get('scheme') || 'ws';
+    const STALE_AFTER_MS = 10_000;
+
+    const $ = (id) => document.getElementById(id);
+    let lastUpdateAt = Date.now();
+
+    // -------- language rotation --------
+    const LANGUAGES = ['te', 'ta', 'hi', 'en'];
+    let langIndex = 0;
+
+    const STRINGS = {
+      te: { open: 'తెరిచి ఉంది', approach: 'త్వరగా ముగియనుంది', cutoff: 'చివరి టోకెన్', closed: 'మూసివేయబడింది',
+            tokens: 'మిగిలిన టోకెన్లు', cutoff_label: 'చివరి హామీ టోకెన్',
+            brand: 'TrioSense · TTD' },
+      ta: { open: 'திறந்துள்ளது', approach: 'விரைவில் முடிகிறது', cutoff: 'கடைசி டோக்கன்', closed: 'மூடப்பட்டது',
+            tokens: 'மீதமுள்ள டோக்கன்கள்', cutoff_label: 'கடைசி உத்தரவாத டோக்கன்',
+            brand: 'TrioSense · TTD' },
+      hi: { open: 'खुला है', approach: 'जल्द ही समाप्त', cutoff: 'अंतिम टोकन', closed: 'बंद',
+            tokens: 'शेष टोकन', cutoff_label: 'अंतिम सुनिश्चित टोकन',
+            brand: 'TrioSense · TTD' },
+      en: { open: 'Open', approach: 'Ending soon', cutoff: 'Last guaranteed token', closed: 'Closed',
+            tokens: 'Tokens remaining', cutoff_label: 'Last guaranteed token #',
+            brand: 'TrioSense · TTD' },
+    };
+
+    let lastState = null;
+
+    function render(state, lang) {
+      if (!state) return;
+      const t = STRINGS[lang];
+
+      const statusEl = $('status');
+      statusEl.className = 'status-pill';
+      switch (state.status) {
+        case 'open':
+          statusEl.classList.add('status-open');
+          statusEl.textContent = t.open;
+          $('headline').textContent = t.tokens;
+          $('number').textContent = state.tokens_remaining.toLocaleString('en-IN');
+          $('label').textContent = t.tokens;
+          break;
+        case 'approaching_cutoff':
+          statusEl.classList.add('status-approach');
+          statusEl.textContent = t.approach;
+          $('headline').textContent = t.tokens;
+          $('number').textContent = state.tokens_remaining.toLocaleString('en-IN');
+          $('label').textContent = t.tokens;
+          break;
+        case 'cutoff_declared':
+          statusEl.classList.add('status-cutoff');
+          statusEl.textContent = t.cutoff;
+          $('headline').textContent = t.cutoff_label;
+          $('number').textContent = '#' + (state.cutoff_position?.toLocaleString('en-IN') ?? '—');
+          $('label').textContent = t.cutoff_label;
+          break;
+        case 'closed':
+          statusEl.classList.add('status-closed');
+          statusEl.textContent = t.closed;
+          $('headline').textContent = '';
+          $('number').textContent = '—';
+          $('label').textContent = t.closed;
+          break;
+      }
+    }
+
+    function tickLanguage() {
+      langIndex = (langIndex + 1) % LANGUAGES.length;
+      render(lastState, LANGUAGES[langIndex]);
+    }
+
+    function tickClock() {
+      const now = new Date();
+      $('ts').textContent = now.toLocaleTimeString('en-IN', { hour12: false });
+      if (Date.now() - lastUpdateAt > STALE_AFTER_MS) {
+        $('stale').classList.add('active');
+      } else {
+        $('stale').classList.remove('active');
+      }
+    }
+
+    // Rotate languages every 8s, clock every 1s
+    setInterval(tickLanguage, 8000);
+    setInterval(tickClock, 1000);
+
+    // -------- WebSocket connection (Reverb / Pusher protocol) --------
+    function connect() {
+      const url = `${REVERB_SCHEME}://${REVERB_HOST}:${REVERB_PORT}/app/${REVERB_KEY}?protocol=7&client=triosense-signage&version=0.1`;
+      const ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        console.log('Reverb connected');
+        ws.send(JSON.stringify({
+          event: 'pusher:subscribe',
+          data: { channel: `private-signage.${LOCATION_ID}` },
+        }));
+      };
+
+      ws.onmessage = (raw) => {
+        try {
+          const msg = JSON.parse(raw.data);
+          if (msg.event === 'LocationStateUpdated' || msg.event === '.LocationStateUpdated') {
+            const data = typeof msg.data === 'string' ? JSON.parse(msg.data) : msg.data;
+            lastState = data;
+            lastUpdateAt = Date.now();
+            render(data, LANGUAGES[langIndex]);
+          }
+        } catch (e) {
+          console.warn('parse error', e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.warn('Reverb closed — reconnecting in 3s');
+        setTimeout(connect, 3000);
+      };
+
+      ws.onerror = (e) => {
+        console.error('Reverb error', e);
+      };
+    }
+
+    // -------- bootstrap --------
+    $('brand').textContent = STRINGS.en.brand;
+    tickClock();
+    connect();
+  </script>
+</body>
+</html>

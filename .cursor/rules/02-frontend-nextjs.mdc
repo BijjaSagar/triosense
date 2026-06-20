@@ -1,0 +1,171 @@
+---
+description: Next.js 15 dashboard conventions for TrioSense
+globs: apps/dashboard/**/*.{ts,tsx,js,jsx}
+alwaysApply: false
+---
+
+# Dashboard (Next.js 15) Conventions
+
+## Tooling
+- Next.js 15 with App Router (no Pages Router).
+- React 19. TypeScript strict mode.
+- Tailwind CSS 4 + shadcn/ui (canary).
+- Laravel Echo for WebSocket subscriptions to Reverb.
+- Recharts for data visualisation.
+
+## Folder structure
+```
+apps/dashboard/
+├── app/
+│   ├── (auth)/login/page.tsx
+│   ├── (app)/
+│   │   ├── dashboard/page.tsx                   3-location grid
+│   │   ├── locations/[id]/
+│   │   │   ├── page.tsx                         live counter detail
+│   │   │   ├── events/page.tsx                  paginated events
+│   │   │   └── cutoffs/page.tsx                 cutoff history
+│   │   ├── settings/page.tsx
+│   │   └── layout.tsx                           shell with sidebar
+│   ├── api/health/route.ts
+│   └── layout.tsx                               root layout
+├── components/
+│   ├── ui/                                      shadcn primitives
+│   ├── locations/                               LocationCard, StatusBadge, ...
+│   ├── charts/                                  IssuanceRateChart, QueueProgressBar
+│   └── shared/
+├── lib/
+│   ├── api.ts                                   typed Laravel API client
+│   ├── echo.ts                                  Laravel Echo singleton
+│   ├── auth.ts                                  Sanctum cookie helpers
+│   └── utils.ts
+├── hooks/
+│   ├── use-location-state.ts                    subscribes to private-location.{id}
+│   └── use-edge-devices.ts
+└── types/
+    └── api.ts                                   generated from OpenAPI
+```
+
+## Server vs client components
+- **Default:** Server Component (no `'use client'`).
+- **Use `'use client'`** only when you need React state, effects, browser APIs, or Echo.
+- **Data fetching:** Prefer server actions and server-side fetches. Client-side fetches only for live data via Echo.
+
+## Component pattern
+
+```tsx
+// app/(app)/locations/[id]/page.tsx — Server Component
+import { LocationCard } from '@/components/locations/location-card';
+import { fetchLocationState } from '@/lib/api';
+
+export default async function LocationDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const initialState = await fetchLocationState(Number(id));
+
+  return <LocationCard initialState={initialState} />;
+}
+```
+
+```tsx
+// components/locations/location-card.tsx — Client Component for live updates
+'use client';
+
+import { useLocationState } from '@/hooks/use-location-state';
+import type { LocationState } from '@/types/api';
+
+interface LocationCardProps {
+  initialState: LocationState;
+}
+
+export function LocationCard({ initialState }: LocationCardProps) {
+  const state = useLocationState(initialState.location_id, initialState);
+
+  return (
+    <div className="rounded-2xl border bg-card p-6 shadow-sm">
+      <h2 className="text-2xl font-bold text-maroon-700">{state.location_name}</h2>
+      <p className="mt-2 text-5xl font-bold">{state.tokens_remaining.toLocaleString()}</p>
+      <p className="text-sm text-muted-foreground">tokens remaining</p>
+      {/* ... */}
+    </div>
+  );
+}
+```
+
+## Hook pattern (WebSocket subscription)
+
+```tsx
+// hooks/use-location-state.ts
+'use client';
+
+import { useEffect, useState } from 'react';
+import { getEcho } from '@/lib/echo';
+import type { LocationState } from '@/types/api';
+
+export function useLocationState(
+  locationId: number,
+  initial: LocationState,
+): LocationState {
+  const [state, setState] = useState<LocationState>(initial);
+
+  useEffect(() => {
+    const echo = getEcho();
+    const channel = echo.private(`location.${locationId}`);
+
+    channel.listen('.LocationStateUpdated', (e: LocationState) => setState(e));
+
+    return () => {
+      echo.leave(`location.${locationId}`);
+    };
+  }, [locationId]);
+
+  return state;
+}
+```
+
+## API client pattern
+
+```ts
+// lib/api.ts
+import type { ApiResponse, LocationState } from '@/types/api';
+
+const BASE = process.env.NEXT_PUBLIC_API_BASE_URL!;
+
+export async function fetchLocationState(locationId: number): Promise<LocationState> {
+  const res = await fetch(`${BASE}/api/v1/locations/${locationId}/state`, {
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+    next: { revalidate: 0 }, // always fresh
+  });
+
+  if (!res.ok) throw new Error(`fetchLocationState failed: ${res.status}`);
+
+  const json = (await res.json()) as ApiResponse<LocationState>;
+  if (!json.success) throw new Error(json.error?.message ?? 'API error');
+  return json.data;
+}
+```
+
+## Styling
+
+- **Tailwind first.** No CSS modules unless absolutely needed.
+- **Palette:** maroon-700 (#6D1A2C), gold-400 (#D4A437) for brand. Use Tailwind config tokens, not raw hex.
+- **shadcn/ui** for primitives. Don't write your own Button, Dialog, Tabs.
+- **Mobile-responsive.** Operators may use phones in the field.
+
+## State conventions
+
+- Use server state via fetch + Echo subscription, not Redux/Zustand.
+- Local UI state via `useState`. No Context unless cross-cutting (auth, Echo).
+- Forms: `react-hook-form` + `zod` for validation.
+
+## What NOT to do
+
+- ❌ Don't use `console.log` in committed code
+- ❌ Don't fetch without typing the response
+- ❌ Don't use `'use client'` unless needed
+- ❌ Don't write inline styles
+- ❌ Don't add a new dependency without justification
+- ❌ Don't bypass Echo for live state (no polling)

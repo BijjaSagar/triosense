@@ -1,0 +1,185 @@
+---
+description: Flutter 3 mobile app conventions for TrioSense
+globs: apps/mobile/**/*.dart
+alwaysApply: false
+---
+
+# Mobile (Flutter 3.24) Conventions
+
+## Tooling
+- Flutter 3.24+, Dart 3.5+.
+- BLoC (`flutter_bloc`) for ALL state. No Provider, no Riverpod, no GetX.
+- Hive for local cache; SQLite via `drift` only if Hive can't represent it.
+- GoRouter for navigation.
+- Dio for HTTP. Pusher Channels Flutter (Reverb compatible) for WebSocket.
+- Firebase Cloud Messaging for push.
+
+## Folder structure (feature-first)
+
+```
+apps/mobile/
+├── lib/
+│   ├── main.dart
+│   ├── app.dart                                 root MaterialApp + DI
+│   ├── core/
+│   │   ├── api/                                 ApiClient (Dio), interceptors
+│   │   ├── auth/                                token store + interceptor
+│   │   ├── echo/                                WebSocket client
+│   │   ├── cache/                               Hive boxes
+│   │   ├── theme/                               TrioSense colors + typography
+│   │   ├── routing/                             GoRouter config
+│   │   └── errors/                              Failure / Exception types
+│   └── features/
+│       ├── auth/
+│       │   ├── data/                            repositories, dtos
+│       │   ├── domain/                          entities, use cases
+│       │   └── presentation/                    blocs, screens, widgets
+│       ├── locations/
+│       │   ├── data/
+│       │   ├── domain/
+│       │   └── presentation/
+│       │       ├── bloc/
+│       │       │   ├── location_state_bloc.dart
+│       │       │   ├── location_state_event.dart
+│       │       │   └── location_state_state.dart
+│       │       ├── pages/
+│       │       │   └── location_detail_page.dart
+│       │       └── widgets/
+│       └── overrides/
+└── test/
+    └── features/...                             mirror of lib/features/
+```
+
+## BLoC pattern
+
+```dart
+// features/locations/presentation/bloc/location_state_event.dart
+sealed class LocationStateEvent {}
+
+final class LoadLocationStateRequested extends LocationStateEvent {
+  final int locationId;
+  LoadLocationStateRequested(this.locationId);
+}
+
+final class LocationStateUpdated extends LocationStateEvent {
+  final LocationState newState;
+  LocationStateUpdated(this.newState);
+}
+```
+
+```dart
+// features/locations/presentation/bloc/location_state_state.dart
+sealed class LocationStateScreenState {}
+
+final class LocationStateInitial extends LocationStateScreenState {}
+
+final class LocationStateLoading extends LocationStateScreenState {}
+
+final class LocationStateLoaded extends LocationStateScreenState {
+  final LocationState data;
+  final bool isStale;
+  LocationStateLoaded(this.data, {this.isStale = false});
+}
+
+final class LocationStateError extends LocationStateScreenState {
+  final Failure failure;
+  LocationStateError(this.failure);
+}
+```
+
+```dart
+// features/locations/presentation/bloc/location_state_bloc.dart
+class LocationStateBloc extends Bloc<LocationStateEvent, LocationStateScreenState> {
+  final GetLocationStateUseCase _getState;
+  final SubscribeToLocationUseCase _subscribe;
+  StreamSubscription<LocationState>? _liveSub;
+
+  LocationStateBloc(this._getState, this._subscribe)
+      : super(LocationStateInitial()) {
+    on<LoadLocationStateRequested>(_onLoad);
+    on<LocationStateUpdated>(_onUpdated);
+  }
+
+  Future<void> _onLoad(
+    LoadLocationStateRequested event,
+    Emitter<LocationStateScreenState> emit,
+  ) async {
+    emit(LocationStateLoading());
+    final result = await _getState(event.locationId);
+    result.fold(
+      (failure) => emit(LocationStateError(failure)),
+      (state) {
+        emit(LocationStateLoaded(state));
+        _liveSub?.cancel();
+        _liveSub = _subscribe(event.locationId).listen(
+          (s) => add(LocationStateUpdated(s)),
+        );
+      },
+    );
+  }
+
+  void _onUpdated(LocationStateUpdated event, Emitter emit) {
+    emit(LocationStateLoaded(event.newState));
+  }
+
+  @override
+  Future<void> close() {
+    _liveSub?.cancel();
+    return super.close();
+  }
+}
+```
+
+## Offline-first
+
+Every read use case follows this pattern:
+1. Try cache (Hive) first — emit immediately as `isStale: true`.
+2. Try network — emit fresh as `isStale: false` on success.
+3. Persist network response to cache.
+
+## Screen pattern
+
+Every screen handles 4 states explicitly: Loading, Loaded, Error, Offline (stale data shown with banner).
+
+```dart
+class LocationDetailPage extends StatelessWidget {
+  final int locationId;
+  const LocationDetailPage({super.key, required this.locationId});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => sl<LocationStateBloc>()
+        ..add(LoadLocationStateRequested(locationId)),
+      child: Scaffold(
+        appBar: AppBar(title: const Text('Counter')),
+        body: BlocBuilder<LocationStateBloc, LocationStateScreenState>(
+          builder: (context, state) {
+            return switch (state) {
+              LocationStateInitial() || LocationStateLoading() =>
+                const _LoadingView(),
+              LocationStateLoaded(:final data, :final isStale) =>
+                _LoadedView(data: data, isStale: isStale),
+              LocationStateError(:final failure) =>
+                _ErrorView(failure: failure),
+            };
+          },
+        ),
+      ),
+    );
+  }
+}
+```
+
+## Dependency injection
+
+Use `get_it` registered in `core/di.dart`. No global singletons.
+
+## What NOT to do
+
+- ❌ Don't use `print()` — use `package:logger`
+- ❌ Don't mix navigation libraries (GoRouter only)
+- ❌ Don't put business logic in widgets
+- ❌ Don't catch and ignore exceptions
+- ❌ Don't use `setState` in a screen that has a BLoC
+- ❌ Don't ship a screen without offline + error states

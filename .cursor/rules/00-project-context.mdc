@@ -1,0 +1,43 @@
+---
+description: TrioSense project context — always loaded
+globs:
+alwaysApply: true
+---
+
+# TrioSense — Project Context
+
+You are working on **TrioSense**, a crowd-aware token distribution system for the Tirumala Tirupati Devasthanams (TTD) Slotted Sarva Darshan (SSD) counters. Built by Triounity Technologies.
+
+## Architecture in one paragraph
+Cameras at three TTD counter locations (Vishnu Nivasam, Srinivasam, Bhudevi Complex) feed a Jetson edge device running YOLOv8 + ByteTrack. The edge publishes IN/OUT/ISSUE events via MQTT to a Laravel 11 backend, which keeps live queue state in Redis and persists every event to MySQL. A FIFO state machine continuously calculates the cutoff position — the position number of the last guaranteed token holder — and broadcasts it via Laravel Reverb (WebSocket) to a Next.js dashboard, Flutter supervisor app, and LED signage at each counter.
+
+## Core invariants (never break these)
+1. **Multi-tenancy.** Every operational table carries `tenant_id BIGINT UNSIGNED NOT NULL` and `location_id BIGINT UNSIGNED NOT NULL`. Every query scoped by both.
+2. **Redis is a cache.** MySQL is the source of truth. Any live state must be replayable from `queue_events`.
+3. **FIFO logic lives in one place.** `apps/backend/app/Domain/Fifo/CutoffCalculator.php`. Don't fork it into controllers or jobs.
+4. **MQTT topics are locked.** Pattern: `triosense/loc/{location_id}/{channel}/{...}`. See `API_CONTRACTS.md`.
+5. **Audit everything.** Operator mutations go through `App\Services\AuditLogger`.
+
+## Tech stack
+- **Backend:** Laravel 11, PHP 8.3, MySQL 8, Redis 7, Laravel Reverb, EMQX MQTT
+- **Dashboard:** Next.js 15 App Router, React 19, Tailwind 4, shadcn/ui, Laravel Echo
+- **Mobile:** Flutter 3.24, BLoC, Hive, GoRouter, Firebase Cloud Messaging
+- **Edge:** Python 3.11, Ultralytics YOLOv8, ByteTrack, paho-mqtt, GStreamer
+
+## What to read before writing code
+- `ARCHITECTURE.md` — system design
+- `BUILD_SPEC.md` — sprint plan
+- `DATABASE_SCHEMA.md` — schema with rationale
+- `API_CONTRACTS.md` — REST + WebSocket + MQTT
+- `CLAUDE.md` — detailed conventions
+
+## What gets a PR rejected
+- New table without `tenant_id` and `location_id` (top-level entities excepted)
+- Multi-key Redis update without `transaction()` or Lua
+- Money as `FLOAT`/`DOUBLE` (always `DECIMAL(15,2)`)
+- `console.log`, `dd()`, `print()`, `var_dump()` in committed code
+- New endpoint not in `API_CONTRACTS.md` and `docs/api/openapi.yaml`
+- New env var not in `.env.example`
+- Modifying an already-deployed migration
+
+When in doubt, ask. Never guess on multi-tenancy or FIFO logic.

@@ -1,0 +1,85 @@
+---
+description: Naming and database conventions — applies everywhere
+globs:
+alwaysApply: true
+---
+
+# Naming & Database Conventions
+
+## Naming
+- **PHP files & classes:** `PascalCase.php`. Files match class names.
+- **PHP methods:** `camelCase`. Properties `camelCase`.
+- **TypeScript files:** `kebab-case.ts`. Components: `PascalCase` export, file is `kebab-case.tsx`.
+- **Dart files:** `snake_case.dart`. Classes: `PascalCase`.
+- **Python files & modules:** `snake_case.py`. Classes: `PascalCase`.
+- **Database tables:** `plural_snake_case` (`queue_events`, not `QueueEvent`).
+- **Database columns:** `snake_case`, never abbreviated.
+- **API endpoints:** plural resource (`/api/v1/locations/{id}/queue-events`). Kebab-case multi-word segments.
+- **MQTT topics:** slash-namespaced, lowercase (`triosense/loc/3/event/enter`).
+- **WebSocket channels:** dot-namespaced (`private-location.3`, `presence-operations.1`).
+- **Env vars:** `SCREAMING_SNAKE_CASE`, prefixed by domain (`TRIOSENSE_MQTT_HOST`).
+
+## Database invariants
+1. Primary key: `{table_singular}_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT`.
+2. Every operational table has `tenant_id BIGINT UNSIGNED NOT NULL`.
+3. Every operational table has `location_id BIGINT UNSIGNED NOT NULL`.
+4. Money: `DECIMAL(15,2)`. Never `FLOAT`, never `DOUBLE`.
+5. Lat/lng: `DECIMAL(10,7)`.
+6. Timestamps: `created_at`, `updated_at` (Laravel timestamps). Domain events use `occurred_at TIMESTAMP(3)`.
+7. Booleans: `BOOLEAN` (MySQL TINYINT(1) under the hood). Never store "true"/"false" strings.
+8. Enums: MySQL `ENUM` for finite, stable sets. Document allowed values.
+9. JSON columns: `JSON`. Don't store JSON in `TEXT`.
+10. Soft deletes (`deleted_at`) only on top-level entities. Operational tables are append-only.
+11. Every foreign key has a matching index.
+12. Every unique constraint is named with `uq_` prefix.
+13. Every regular index is named with `idx_` prefix.
+
+## File creation triggers
+
+When I ask you to add:
+| Thing | Goes in |
+| --- | --- |
+| A new REST endpoint | `apps/backend/app/Http/Controllers/Api/V1/` + route in `routes/api.php` + entry in `API_CONTRACTS.md` + OpenAPI spec |
+| A new database table | New migration in `apps/backend/database/migrations/` + Eloquent model in `apps/backend/app/Models/` + entry in `DATABASE_SCHEMA.md` |
+| A new MQTT topic | Entry in `API_CONTRACTS.md` + ADR if not following the existing pattern + handler in `apps/backend/app/Mqtt/Handlers/` |
+| A new dashboard page | `apps/dashboard/app/(app)/{route}/page.tsx` |
+| A new mobile feature | `apps/mobile/lib/features/{name}/` with `data/`, `domain/`, `presentation/` |
+| A new edge module | `apps/edge/triosense_edge/{module}/` |
+| A new architectural choice | `docs/adr/NNNN-{slug}.md` (next number) |
+| A new runbook | `docs/runbooks/{slug}.md` |
+
+## Commits
+
+Conventional Commits. Examples:
+- `feat(backend): add cutoff override endpoint`
+- `fix(edge): handle RTSP reconnect race condition`
+- `docs(api): document new state event payload`
+- `refactor(fifo): extract issuance rate calculation`
+- `test(fifo): add boundary tests for empty queue`
+- `chore(deps): bump laravel/sanctum to 4.x`
+
+Scope is the affected module/area, not the file. Body explains *why*.
+
+## Pull requests
+
+PR description template:
+```
+## What
+One sentence.
+
+## Why
+The user-facing or operational reason.
+
+## How tested
+Commands, screenshots, or referenced test names.
+
+## Docs updated
+- [ ] ARCHITECTURE.md
+- [ ] API_CONTRACTS.md
+- [ ] DATABASE_SCHEMA.md
+- [ ] BUILD_SPEC.md (sprint checklist)
+- [ ] docs/adr/
+
+## Acceptance criteria from sprint
+Paste the relevant ACs.
+```

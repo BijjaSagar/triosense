@@ -1,0 +1,117 @@
+name: triosense
+
+services:
+
+  mysql:
+    image: mysql:8.0
+    container_name: triosense-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootsecret}
+      MYSQL_DATABASE: ${DB_DATABASE:-triosense}
+      MYSQL_USER: ${DB_USERNAME:-triosense}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-triosense}
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./infra/docker/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${DB_ROOT_PASSWORD:-rootsecret}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - triosense
+
+  redis:
+    image: redis:7-alpine
+    container_name: triosense-redis
+    restart: unless-stopped
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - triosense
+
+  emqx:
+    image: emqx/emqx:5.7
+    container_name: triosense-emqx
+    restart: unless-stopped
+    ports:
+      - "1883:1883"        # MQTT
+      - "8883:8883"        # MQTT over TLS
+      - "8083:8083"        # MQTT over WebSocket
+      - "18083:18083"      # Dashboard (admin/public)
+    volumes:
+      - emqx_data:/opt/emqx/data
+      - emqx_log:/opt/emqx/log
+      - ./infra/mqtt/emqx.conf:/opt/emqx/etc/emqx.conf:ro
+    networks:
+      - triosense
+
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: triosense-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025"        # SMTP
+      - "8025:8025"        # UI
+    networks:
+      - triosense
+
+  # ---------- application services (uncomment to run in containers) ----------
+  # In local dev we usually run these natively for hot-reload.
+
+  # backend:
+  #   build:
+  #     context: ./apps/backend
+  #     dockerfile: ../../infra/docker/backend.Dockerfile
+  #   container_name: triosense-backend
+  #   restart: unless-stopped
+  #   ports:
+  #     - "8000:8000"
+  #   environment:
+  #     - APP_ENV=local
+  #     - DB_HOST=mysql
+  #     - REDIS_HOST=redis
+  #     - MQTT_HOST=emqx
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   volumes:
+  #     - ./apps/backend:/var/www/html
+  #   networks:
+  #     - triosense
+
+  # dashboard:
+  #   build:
+  #     context: ./apps/dashboard
+  #     dockerfile: ../../infra/docker/dashboard.Dockerfile
+  #   container_name: triosense-dashboard
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NEXT_PUBLIC_API_BASE_URL=http://localhost:8000
+  #   networks:
+  #     - triosense
+
+volumes:
+  mysql_data:
+  redis_data:
+  emqx_data:
+  emqx_log:
+
+networks:
+  triosense:
+    name: triosense
+    driver: bridge
