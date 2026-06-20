@@ -2,8 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Fifo;
+namespace App\Services\Fifo;
 
+use App\Domain\Fifo\LiveState;
+use App\Domain\Fifo\LocationLiveSnapshot;
+use App\Domain\Fifo\LocationRedisKeys;
+use App\Domain\Fifo\Mode;
+use App\Domain\Fifo\Status;
 use App\Models\Location;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Redis\Factory as RedisFactory;

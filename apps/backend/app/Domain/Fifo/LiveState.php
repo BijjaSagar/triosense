@@ -10,7 +10,7 @@ use Carbon\CarbonImmutable;
  * Immutable value object representing the live state of one counter location
  * at one instant in time. This is the sole input to {@see CutoffCalculator}.
  *
- * Constructed from Redis state by App\Domain\Fifo\LiveStateReader.
+ * Constructed from Redis state by {@see \App\Services\Fifo\LiveStateReader}.
  */
 final readonly class LiveState
 {

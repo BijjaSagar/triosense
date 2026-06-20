@@ -126,6 +126,29 @@
     const REVERB_PORT = params.get('port') || '8080';
     const REVERB_SCHEME = params.get('scheme') || 'ws';
     const STALE_AFTER_MS = 10_000;
+    const DEBUG = params.get('debug') === '1';
+
+    /** @param {'info'|'warn'|'error'} level */
+    function signageLog(level, message, detail) {
+      if (!DEBUG) return;
+      const prefix = '[triosense-signage]';
+      if (detail !== undefined) {
+        // Debug-only output when ?debug=1 is set in the URL hash.
+        if (level === 'error') {
+          globalThis.console?.error(prefix, message, detail);
+        } else if (level === 'warn') {
+          globalThis.console?.warn(prefix, message, detail);
+        } else {
+          globalThis.console?.info(prefix, message, detail);
+        }
+      } else if (level === 'error') {
+        globalThis.console?.error(prefix, message);
+      } else if (level === 'warn') {
+        globalThis.console?.warn(prefix, message);
+      } else {
+        globalThis.console?.info(prefix, message);
+      }
+    }
 
     const $ = (id) => document.getElementById(id);
     let lastUpdateAt = Date.now();
@@ -214,7 +237,7 @@
       const ws = new WebSocket(url);
 
       ws.onopen = () => {
-        console.log('Reverb connected');
+        signageLog('info', 'Reverb connected');
         ws.send(JSON.stringify({
           event: 'pusher:subscribe',
           data: { channel: `private-signage.${LOCATION_ID}` },
@@ -231,17 +254,17 @@
             render(data, LANGUAGES[langIndex]);
           }
         } catch (e) {
-          console.warn('parse error', e);
+          signageLog('warn', 'parse error', e);
         }
       };
 
       ws.onclose = () => {
-        console.warn('Reverb closed — reconnecting in 3s');
+        signageLog('warn', 'Reverb closed — reconnecting in 3s');
         setTimeout(connect, 3000);
       };
 
       ws.onerror = (e) => {
-        console.error('Reverb error', e);
+        signageLog('error', 'Reverb error', e);
       };
     }
 

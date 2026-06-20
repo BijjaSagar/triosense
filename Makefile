@@ -5,9 +5,10 @@ COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compos
 
 .PHONY: help up down logs ps health restart \
         backend-shell backend-test backend-stan backend-migrate backend-seed \
-        dashboard-dev dashboard-build dashboard-test \
+        dashboard-dev dashboard-build dashboard-test dashboard-lint \
         edge-test edge-lint \
         mobile-test mobile-analyze \
+        test lint \
         seed clean
 
 help: ## Show this help
@@ -81,6 +82,9 @@ dashboard-build: ## Production build
 dashboard-test: ## Run Vitest
 	cd apps/dashboard && npm test
 
+dashboard-lint: ## ESLint + type-check
+	cd apps/dashboard && npm run lint && npm run type-check
+
 # ---------- edge ----------
 
 edge-test: ## Run pytest
@@ -99,6 +103,12 @@ mobile-test: ## Run Flutter tests
 
 mobile-analyze: ## Static analysis
 	cd apps/mobile && flutter analyze
+
+# ---------- all apps ----------
+
+test: backend-test dashboard-test edge-test mobile-test ## Run all test suites
+
+lint: backend-stan dashboard-lint edge-lint mobile-analyze ## Run all linters
 
 # ---------- utility ----------
 

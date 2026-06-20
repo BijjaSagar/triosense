@@ -7,7 +7,7 @@ namespace App\Services\Fifo;
 use App\Broadcasting\CutoffStatusChanged;
 use App\Broadcasting\LocationStateUpdated;
 use App\Domain\Fifo\CutoffCalculator;
-use App\Domain\Fifo\LiveStateReader;
+use App\Services\Fifo\LiveStateReader;
 use App\Domain\Fifo\Mode;
 use App\Domain\Fifo\Decision;
 use App\Domain\Fifo\LiveState;
