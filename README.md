@@ -52,7 +52,7 @@ triosense/
 
 ### Spin up infrastructure
 ```bash
-git clone <repo-url> triosense
+git clone https://github.com/BijjaSagar/triosense.git triosense
 cd triosense
 cp .env.example .env
 docker compose up -d mysql redis emqx mailhog

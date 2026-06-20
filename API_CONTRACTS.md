@@ -107,6 +107,33 @@ Paginated. Filters: `event_type`, `from`, `to`, `edge_device_id`.
 #### `GET /locations/{id}/cutoff-events`
 Paginated. Filters: `from`, `to`, `mode`.
 
+#### `GET /locations/{id}/cutoff-accuracy`
+Returns predicted vs actual closure history for shadow-mode validation.
+```json
+{ "success": true, "data": {
+  "location_id": 3,
+  "from": "2026-05-21",
+  "to": "2026-06-20",
+  "summary": {
+    "days_with_predictions": 7,
+    "days_within_tolerance": 6,
+    "median_delta": 4,
+    "max_delta": 12
+  },
+  "daily": [
+    { "date": "2026-06-19", "predicted_cutoff_position": 4985,
+      "actual_closure_position": 4990, "delta_positions": 5,
+      "within_tolerance": true, "mode": "shadow" }
+  ]
+}}
+```
+
+#### `GET /locations/{id}/announcements`
+Paginated announcement history for a location.
+
+#### `GET /cross-counter/recommendations`
+Returns active cross-counter redirection recommendations for the tenant.
+
 ### 1.6 Edge & cameras
 
 #### `GET /edge-devices`

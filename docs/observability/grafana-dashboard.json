@@ -1,0 +1,16 @@
+{
+  "dashboard": {
+    "title": "TrioSense Operations",
+    "panels": [
+      {
+        "title": "FIFO tick rate",
+        "targets": ["triosense_fifo_ticks_total"]
+      },
+      {
+        "title": "MQTT events ingested",
+        "targets": ["triosense_mqtt_events_total"]
+      }
+    ]
+  },
+  "notes": "Import into Grafana after Prometheus scrapes GET /api/v1/metrics/prometheus"
+}
