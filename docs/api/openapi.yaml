@@ -16,6 +16,10 @@ components:
       type: http
       scheme: bearer
       bearerFormat: Sanctum
+    edgeApiKey:
+      type: apiKey
+      in: header
+      name: X-Edge-Api-Key
 
   schemas:
     ApiMeta:
@@ -245,6 +249,77 @@ components:
             last_page:
               type: integer
 
+    TripwireConfig:
+      type: object
+      required: [line, direction]
+      properties:
+        line:
+          type: array
+          minItems: 2
+          maxItems: 2
+          items:
+            type: array
+            items:
+              type: integer
+        direction:
+          type: string
+          enum: [up, down, left, right]
+
+    EdgeCameraConfig:
+      type: object
+      required: [camera_id, name, role, rtsp_url, status]
+      properties:
+        camera_id:
+          type: integer
+        name:
+          type: string
+        role:
+          type: string
+          enum: [entry_tripwire, counter_window, density, overview]
+        rtsp_url:
+          type: string
+        status:
+          type: string
+        tripwire:
+          $ref: '#/components/schemas/TripwireConfig'
+
+    EdgeRuntimeConfig:
+      type: object
+      properties:
+        heartbeat_seconds:
+          type: integer
+        inference_fps:
+          type: integer
+        inference_confidence_threshold:
+          type: number
+        inference_backend:
+          type: string
+          enum: [cpu, tensorrt, mock]
+        stream_backend:
+          type: string
+          enum: [gstreamer, opencv, mock]
+        model_path:
+          type: string
+        rtsp_reconnect_seconds:
+          type: number
+
+    EdgeDeviceConfig:
+      type: object
+      required: [device_uid, tenant_id, location_id, runtime, cameras]
+      properties:
+        device_uid:
+          type: string
+        tenant_id:
+          type: integer
+        location_id:
+          type: integer
+        runtime:
+          $ref: '#/components/schemas/EdgeRuntimeConfig'
+        cameras:
+          type: array
+          items:
+            $ref: '#/components/schemas/EdgeCameraConfig'
+
 paths:
   /auth/login:
     post:
@@ -356,3 +431,33 @@ paths:
       responses:
         '200':
           description: Paginated events
+
+  /edge/{deviceUid}/config:
+    get:
+      summary: Edge device camera and runtime configuration
+      tags: [Edge]
+      security:
+        - edgeApiKey: []
+      parameters:
+        - name: deviceUid
+          in: path
+          required: true
+          schema:
+            type: string
+            example: edge-sim-03
+      responses:
+        '200':
+          description: Edge configuration payload
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/EdgeDeviceConfig'
+        '401':
+          description: Missing or invalid edge API key
+        '404':
+          description: Unknown edge device

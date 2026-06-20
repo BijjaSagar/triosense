@@ -25,6 +25,7 @@ final class EdgeDevice extends Model
         'last_heartbeat_at',
         'status',
         'config_json',
+        'api_key_hash',
     ];
 
     protected $casts = [

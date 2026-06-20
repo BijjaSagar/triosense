@@ -124,7 +124,8 @@ CREATE TABLE edge_devices (
     firmware_version VARCHAR(40) NULL,
     last_heartbeat_at TIMESTAMP NULL,
     status           ENUM('online','degraded','offline','retired') NOT NULL DEFAULT 'offline',
-    config_json      JSON NULL,
+    config_json      JSON NULL,                    -- runtime inference/stream settings
+    api_key_hash     VARCHAR(255) NULL,            -- bcrypt hash of per-device API key
     created_at       TIMESTAMP NULL,
     updated_at       TIMESTAMP NULL,
     PRIMARY KEY (edge_device_id),

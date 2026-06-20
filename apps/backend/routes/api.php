@@ -3,11 +3,17 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Api\V1\AuthController;
+use App\Http\Controllers\Api\V1\EdgeConfigController;
 use App\Http\Controllers\Api\V1\LocationController;
+use App\Http\Middleware\AuthenticateEdgeDevice;
 use Illuminate\Support\Facades\Route;
 
 Route::prefix('v1')->group(function (): void {
     Route::post('/auth/login', [AuthController::class, 'login']);
+
+    Route::get('/edge/{deviceUid}/config', [EdgeConfigController::class, 'show'])
+        ->middleware(AuthenticateEdgeDevice::class)
+        ->where('deviceUid', '[a-z0-9-]+');
 
     Route::middleware('auth:sanctum')->group(function (): void {
         Route::post('/auth/logout', [AuthController::class, 'logout']);

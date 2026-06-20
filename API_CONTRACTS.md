@@ -114,7 +114,37 @@ Tenant-wide listing with filters.
 
 #### `GET /edge/{device_uid}/config`
 **Called by edge devices on boot.** Returns the camera RTSP URLs, tripwire coordinates, and runtime settings for that device.
-Auth: per-device API key (separate from user Sanctum tokens).
+Auth: per-device API key via `X-Edge-Api-Key` header (separate from user Sanctum tokens). Key hash stored in `edge_devices.api_key_hash`.
+
+Response `data`:
+```json
+{
+  "device_uid": "edge-sim-03",
+  "tenant_id": 1,
+  "location_id": 3,
+  "runtime": {
+    "heartbeat_seconds": 5,
+    "inference_fps": 15,
+    "inference_confidence_threshold": 0.5,
+    "inference_backend": "tensorrt",
+    "stream_backend": "gstreamer",
+    "model_path": "yolov8n.pt",
+    "rtsp_reconnect_seconds": 5.0
+  },
+  "cameras": [
+    {
+      "camera_id": 17,
+      "name": "Bhudevi Entry Tripwire",
+      "role": "entry_tripwire",
+      "rtsp_url": "rtsp://...",
+      "status": "active",
+      "tripwire": { "line": [[640,720],[1280,720]], "direction": "down" }
+    }
+  ]
+}
+```
+
+Tripwire coordinates are stored in `cameras.tripwire_json` (not `config_json`).
 
 #### `POST /edge/{device_uid}/calibrate`
 Edge device uploads a frame; server stores it for the calibration UI.
