@@ -53,12 +53,18 @@ class EdgeConfig(BaseModel):
     mqtt: MqttConfig
     heartbeat_seconds: int = 5
     inference_fps: int = 15
+    preview_fps: int = 15
     inference_confidence_threshold: float = Field(0.5, ge=0.0, le=1.0)
     inference_backend: Literal["cpu", "tensorrt", "mock"] = "cpu"
     stream_backend: Literal["gstreamer", "opencv", "mock"] = "opencv"
     buffer_db_path: Path = Path("/var/lib/triosense/buffer.sqlite")
     model_path: str = "yolov8n.pt"
     rtsp_reconnect_seconds: float = 5.0
+    capture_width: int | None = None
+    capture_height: int | None = None
+    inference_width: int = 640
+    preview_jpeg_quality: int = Field(70, ge=1, le=100)
+    preview_max_width: int = 640
 
     @classmethod
     def from_yaml(cls, path: Path) -> EdgeConfig:

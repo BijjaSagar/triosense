@@ -35,12 +35,16 @@ class RtspStream:
         backend: Literal["gstreamer", "opencv", "mock"] = "opencv",
         target_fps: int = 15,
         reconnect_seconds: float = 5.0,
+        capture_width: int | None = None,
+        capture_height: int | None = None,
     ) -> None:
         self._rtsp_url = rtsp_url
         self._source_type = source_type
         self._backend = backend
         self._target_fps = target_fps
         self._reconnect_seconds = reconnect_seconds
+        self._capture_width = capture_width
+        self._capture_height = capture_height
         self._frame_number = 0
         self._capture: cv2.VideoCapture | None = None
 
@@ -102,8 +106,26 @@ class RtspStream:
     def _open_capture_sync(self) -> cv2.VideoCapture | None:
         if self._source_type == "webcam":
             device_index = self._webcam_device_index()
-            log.info("opening webcam device_index=%d", device_index)
+            log.info(
+                "opening webcam device_index=%d capture=%sx%s target_fps=%d",
+                device_index,
+                self._capture_width or "auto",
+                self._capture_height or "auto",
+                self._target_fps,
+            )
             capture = cv2.VideoCapture(device_index)
+            if capture.isOpened() and self._capture_width and self._capture_height:
+                capture.set(cv2.CAP_PROP_FRAME_WIDTH, float(self._capture_width))
+                capture.set(cv2.CAP_PROP_FRAME_HEIGHT, float(self._capture_height))
+                actual_w = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+                actual_h = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                log.info(
+                    "webcam resolution set requested=%dx%d actual=%dx%d",
+                    self._capture_width,
+                    self._capture_height,
+                    actual_w,
+                    actual_h,
+                )
             return capture if capture.isOpened() else None
 
         if self._backend == "gstreamer":

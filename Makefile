@@ -116,8 +116,11 @@ edge-calibrate: ## Tripwire calibration web UI on :8765 (mock/RTSP example confi
 edge-calibrate-webcam: edge-install ## Tripwire calibration on Mac webcam (:8765)
 	cd apps/edge && poetry run triosense-edge-calibrate --config=config/local.webcam.yaml --port=8765
 
-edge-webcam: edge-install ## Mac webcam demo — YOLO + tripwire + preview on :8766
+edge-webcam: edge-install ## Mac webcam demo — YOLO + tripwire + preview on :8766 (see apps/edge/README.md § Mac performance tips)
 	cd apps/edge && mkdir -p /tmp/triosense && poetry run triosense-edge --config=config/local.webcam.yaml --preview-port=8766
+
+edge-webcam-mock: edge-install ## Ultra-fast Mac webcam demo — mock inference, real capture
+	cd apps/edge && mkdir -p /tmp/triosense && TRIOSENSE_LOG_LEVEL=INFO poetry run triosense-edge --config=config/local.webcam.mock.yaml --preview-port=8766
 
 # ---------- mobile ----------
 

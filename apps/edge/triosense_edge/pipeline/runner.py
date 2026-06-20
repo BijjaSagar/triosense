@@ -13,6 +13,7 @@ from triosense_edge.pipeline.detector import build_detector
 from triosense_edge.pipeline.stream import RtspStream
 from triosense_edge.pipeline.tracker import ByteTracker
 from triosense_edge.pipeline.tripwire import TripwireDetector
+from triosense_edge.pipeline.types import Detection, Frame, Track
 from triosense_edge.preview.annotate import annotate_frame, encode_jpeg
 from triosense_edge.preview.state import PreviewState, PreviewStats
 from triosense_edge.transport.mqtt_client import MqttClient
@@ -23,9 +24,16 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class CameraStats:
-    fps: float = 0.0
+    inference_fps: float = 0.0
+    preview_fps: float = 0.0
     last_frame_at: datetime | None = None
     status: str = "starting"
+
+
+@dataclass
+class _InferenceSnapshot:
+    detections: list[Detection] = field(default_factory=list)
+    tracks: list[Track] = field(default_factory=list)
 
 
 @dataclass
@@ -44,6 +52,15 @@ class PipelineRunner:
             model_path=self.config.model_path,
             backend=self.config.inference_backend,
             confidence_threshold=self.config.inference_confidence_threshold,
+            inference_width=self.config.inference_width,
+        )
+        log.info(
+            "detector ready backend=%s model=%s inference_width=%d inference_fps=%d preview_fps=%d",
+            self.config.inference_backend,
+            self.config.model_path,
+            self.config.inference_width,
+            self.config.inference_fps,
+            self.config.preview_fps,
         )
 
     async def start(self) -> None:
@@ -76,85 +93,156 @@ class PipelineRunner:
             camera.rtsp_url,
             source_type=camera.source_type,
             backend=self.config.stream_backend,
-            target_fps=self.config.inference_fps,
+            target_fps=self.config.preview_fps,
             reconnect_seconds=self.config.rtsp_reconnect_seconds,
+            capture_width=self.config.capture_width,
+            capture_height=self.config.capture_height,
         )
         stats = self._camera_stats[camera.camera_id]
         self._preview_counters.setdefault(camera.camera_id, (0, 0))
 
-        while True:
-            try:
-                async with stream.connect():
-                    stats.status = "ok"
-                    async for frame in stream.frames():
-                        loop_start = time.perf_counter()
-                        detections = self._detector.detect(frame)  # type: ignore[attr-defined]
-                        tracks = tracker.update(detections)
-                        stats.last_frame_at = frame.timestamp
-                        elapsed = max(time.perf_counter() - loop_start, 1e-6)
-                        stats.fps = round(1.0 / elapsed, 2)
+        latest_frame: Frame | None = None
+        frame_lock = asyncio.Lock()
+        inference_snapshot = _InferenceSnapshot()
+        inference_interval = 1.0 / max(1, self.config.inference_fps)
+        preview_interval = 1.0 / max(1, self.config.preview_fps)
 
-                        if tripwire is not None:
-                            for event in tripwire.process(tracks, frame.timestamp):
-                                enters, exits = self._preview_counters[camera.camera_id]
-                                if event.direction == "in":
-                                    enters += 1
-                                else:
-                                    exits += 1
-                                self._preview_counters[camera.camera_id] = (enters, exits)
-                                await self._publish_tripwire_event(
-                                    camera,
-                                    event,
-                                    frame.frame_number,
-                                )
-
-                        await self._publish_preview_frame(
-                            camera,
-                            frame.image,
-                            detections,
-                            tracks,
-                            stats,
+        async def capture_loop() -> None:
+            nonlocal latest_frame
+            while True:
+                try:
+                    async with stream.connect():
+                        stats.status = "ok"
+                        log.info(
+                            "capture loop started camera_id=%d preview_fps=%d",
+                            camera.camera_id,
+                            self.config.preview_fps,
                         )
-            except asyncio.CancelledError:
-                stats.status = "stopped"
-                raise
-            except Exception:
-                stats.status = "degraded"
-                log.exception("camera loop error camera_id=%d", camera.camera_id)
-                await asyncio.sleep(self.config.rtsp_reconnect_seconds)
+                        async for frame in stream.frames():
+                            async with frame_lock:
+                                latest_frame = frame
+                except asyncio.CancelledError:
+                    stats.status = "stopped"
+                    raise
+                except Exception:
+                    stats.status = "degraded"
+                    log.exception("capture loop error camera_id=%d", camera.camera_id)
+                    await asyncio.sleep(self.config.rtsp_reconnect_seconds)
+
+        async def inference_loop() -> None:
+            loop = asyncio.get_running_loop()
+            while True:
+                await asyncio.sleep(inference_interval)
+                async with frame_lock:
+                    frame = latest_frame
+                if frame is None:
+                    log.debug("inference skipped camera_id=%d — no frame yet", camera.camera_id)
+                    continue
+
+                loop_start = time.perf_counter()
+                detections = await loop.run_in_executor(None, self._detector.detect, frame)  # type: ignore[attr-defined]
+                tracks = tracker.update(detections)
+                elapsed = max(time.perf_counter() - loop_start, 1e-6)
+                stats.inference_fps = round(1.0 / elapsed, 2)
+                stats.last_frame_at = frame.timestamp
+                inference_snapshot.detections = detections
+                inference_snapshot.tracks = tracks
+                log.debug(
+                    "inference tick camera_id=%d frame=%d detections=%d tracks=%d fps=%.2f",
+                    camera.camera_id,
+                    frame.frame_number,
+                    len(detections),
+                    len(tracks),
+                    stats.inference_fps,
+                )
+
+                if tripwire is not None:
+                    for event in tripwire.process(tracks, frame.timestamp):
+                        enters, exits = self._preview_counters[camera.camera_id]
+                        if event.direction == "in":
+                            enters += 1
+                        else:
+                            exits += 1
+                        self._preview_counters[camera.camera_id] = (enters, exits)
+                        await self._publish_tripwire_event(
+                            camera,
+                            event,
+                            frame.frame_number,
+                        )
+
+        async def preview_loop() -> None:
+            while True:
+                await asyncio.sleep(preview_interval)
+                async with frame_lock:
+                    frame = latest_frame
+                if frame is None:
+                    continue
+                await self._publish_preview_frame(
+                    camera,
+                    frame.image,
+                    inference_snapshot.detections,
+                    inference_snapshot.tracks,
+                    stats,
+                )
+
+        tasks = [
+            asyncio.create_task(capture_loop(), name=f"capture-{camera.camera_id}"),
+            asyncio.create_task(inference_loop(), name=f"inference-{camera.camera_id}"),
+        ]
+        if self.preview_state is not None:
+            tasks.append(
+                asyncio.create_task(preview_loop(), name=f"preview-{camera.camera_id}"),
+            )
+
+        try:
+            await asyncio.gather(*tasks)
+        except asyncio.CancelledError:
+            stats.status = "stopped"
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
 
     async def _publish_preview_frame(
         self,
         camera: CameraConfig,
         image: object,
-        detections: list[object],
-        tracks: list[object],
+        detections: list[Detection],
+        tracks: list[Track],
         stats: CameraStats,
     ) -> None:
         if self.preview_state is None:
             return
 
-        from triosense_edge.pipeline.types import Detection, Track
-
-        typed_detections = [item for item in detections if isinstance(item, Detection)]
-        typed_tracks = [item for item in tracks if isinstance(item, Track)]
+        loop_start = time.perf_counter()
         enters, exits = self._preview_counters.get(camera.camera_id, (0, 0))
         preview_stats = PreviewStats(
-            person_count=len(typed_tracks),
+            person_count=len(tracks),
             enter_count=enters,
             exit_count=exits,
-            fps=stats.fps,
+            fps=stats.preview_fps,
+            inference_fps=stats.inference_fps,
+            preview_fps=stats.preview_fps,
             camera_id=camera.camera_id,
             status=stats.status,
         )
         annotated = annotate_frame(
             image,  # type: ignore[arg-type]
-            detections=typed_detections,
-            tracks=typed_tracks,
+            detections=detections,
+            tracks=tracks,
             tripwire=camera.tripwire,
             stats=preview_stats,
         )
-        await self.preview_state.update(encode_jpeg(annotated), preview_stats)
+        jpeg = encode_jpeg(
+            annotated,
+            quality=self.config.preview_jpeg_quality,
+            max_width=self.config.preview_max_width,
+        )
+        elapsed = max(time.perf_counter() - loop_start, 1e-6)
+        stats.preview_fps = round(1.0 / elapsed, 2)
+        preview_stats.preview_fps = stats.preview_fps
+        preview_stats.fps = stats.preview_fps
+        await self.preview_state.update(jpeg, preview_stats)
 
     async def _publish_tripwire_event(
         self,
@@ -201,7 +289,7 @@ class PipelineRunner:
                     CameraHeartbeat(
                         camera_id=camera.camera_id,
                         status=stats.status,
-                        fps=stats.fps,
+                        fps=stats.inference_fps,
                         last_frame_at=(
                             stats.last_frame_at.isoformat(timespec="milliseconds").replace(
                                 "+00:00", "Z"

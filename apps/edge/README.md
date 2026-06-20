@@ -80,9 +80,33 @@ Walk across the tripwire line in frame; watch MQTT `enter`/`exit` events on the 
 **Preview URLs**
 
 - Edge MJPEG preview (while `make edge-webcam` is running): [http://127.0.0.1:8766](http://127.0.0.1:8766)
+- Stats JSON: [http://127.0.0.1:8766/api/stats](http://127.0.0.1:8766/api/stats) — shows separate `preview_fps` and `inference_fps`
 - Dashboard preview page: [http://localhost:3001/dashboard/locations/1/preview](http://localhost:3001/dashboard/locations/1/preview)
 
 Configure the tripwire via dashboard: [http://localhost:3001/dashboard/locations/1/settings](http://localhost:3001/dashboard/locations/1/settings) (login: `ops@ttd.gov.in` / `password`).
+
+### Mac performance tips
+
+The webcam demo decouples **capture**, **inference**, and **preview** so YOLO does not block the MJPEG stream. Defaults in `config/local.webcam.yaml` target ~10–15 preview FPS on a typical MacBook:
+
+| Knob | Default | Effect |
+| --- | --- | --- |
+| `preview_fps` | 12 | Smooth MJPEG refresh rate |
+| `inference_fps` | 4 | How often YOLO runs (detection boxes update less often) |
+| `capture_width` / `capture_height` | 640×480 | Webcam capture resolution |
+| `inference_width` | 640 | YOLO input width (boxes scaled back to capture size) |
+| `preview_max_width` | 640 | MJPEG encode width |
+| `preview_jpeg_quality` | 70 | Lower = smaller/faster JPEGs |
+| `inference_backend` | `cpu` | Set to `mock` for ultra-fast UI demo (no YOLO, synthetic boxes) |
+| `model_path` | `yolov8n.pt` | Smallest YOLOv8 variant — do not switch to `s/m/l/x` on Mac |
+
+**Expected FPS on Mac (M1/M2, `yolov8n` CPU):**
+
+- Preview: **10–15 FPS** with defaults
+- Inference: **3–5 FPS** (boxes may lag slightly between inference ticks — normal)
+- Mock mode (`inference_backend: mock`): preview **12+ FPS**, inference ~instant
+
+To go faster, lower `inference_fps` to 2–3 or switch to `inference_backend: mock`. To improve detection accuracy at the cost of speed, raise `inference_fps` or `capture_width`/`capture_height` to 1280×720.
 
 ## Module map
 

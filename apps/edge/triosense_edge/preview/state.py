@@ -15,6 +15,8 @@ class PreviewStats:
     enter_count: int = 0
     exit_count: int = 0
     fps: float = 0.0
+    inference_fps: float = 0.0
+    preview_fps: float = 0.0
     camera_id: int = 0
     status: str = "starting"
 
@@ -32,12 +34,14 @@ class PreviewState:
             self._jpeg = jpeg
             self.stats = stats
             log.debug(
-                "preview frame updated camera_id=%d persons=%d enters=%d exits=%d fps=%.1f",
+                "preview frame updated camera_id=%d persons=%d enters=%d exits=%d "
+                "preview_fps=%.1f inference_fps=%.1f",
                 stats.camera_id,
                 stats.person_count,
                 stats.enter_count,
                 stats.exit_count,
-                stats.fps,
+                stats.preview_fps,
+                stats.inference_fps,
             )
 
     async def snapshot(self) -> tuple[bytes, PreviewStats]:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import AsyncIterator
+from collections.abc import AsyncIterator
 
 import uvicorn
 from fastapi import FastAPI
@@ -36,7 +36,8 @@ INDEX_HTML = """<!doctype html>
         const res = await fetch('/api/stats');
         const data = await res.json();
         document.getElementById('stats').textContent =
-          `Persons: ${data.person_count} | IN: ${data.enter_count} | OUT: ${data.exit_count} | FPS: ${data.fps}`;
+          `Persons: ${data.person_count} | IN: ${data.enter_count} | OUT: ${data.exit_count}`
+          + ` | Preview: ${data.preview_fps} FPS | Inference: ${data.inference_fps} FPS`;
       } catch (err) {
         document.getElementById('stats').textContent = 'Stats unavailable';
       }
@@ -63,7 +64,9 @@ def create_app(preview_state: PreviewState) -> FastAPI:
                 "person_count": snapshot.person_count,
                 "enter_count": snapshot.enter_count,
                 "exit_count": snapshot.exit_count,
-                "fps": snapshot.fps,
+                "fps": snapshot.preview_fps,
+                "preview_fps": snapshot.preview_fps,
+                "inference_fps": snapshot.inference_fps,
                 "camera_id": snapshot.camera_id,
                 "status": snapshot.status,
             }
@@ -74,7 +77,7 @@ def create_app(preview_state: PreviewState) -> FastAPI:
         async def generate() -> AsyncIterator[bytes]:
             boundary = b"frame"
             while True:
-                jpeg, _ = await preview_state.snapshot()
+                jpeg, snapshot = await preview_state.snapshot()
                 if jpeg:
                     yield (
                         b"--"
@@ -83,7 +86,8 @@ def create_app(preview_state: PreviewState) -> FastAPI:
                         + jpeg
                         + b"\r\n"
                     )
-                await asyncio.sleep(0.05)
+                interval = 1.0 / max(snapshot.preview_fps, 1.0)
+                await asyncio.sleep(min(interval, 0.1))
 
         return StreamingResponse(
             generate(),
@@ -118,7 +122,9 @@ def stats_payload(stats: PreviewStats) -> dict[str, float | int | str]:
         "person_count": stats.person_count,
         "enter_count": stats.enter_count,
         "exit_count": stats.exit_count,
-        "fps": stats.fps,
+        "fps": stats.preview_fps,
+        "preview_fps": stats.preview_fps,
+        "inference_fps": stats.inference_fps,
         "camera_id": stats.camera_id,
         "status": stats.status,
     }

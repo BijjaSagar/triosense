@@ -1,15 +1,14 @@
-# Mac dev webcam demo — Vishnu Nivasam (location_id=1)
-# Requires: docker compose up (EMQX on :1883), camera permission for Terminal/Cursor.
+# Mac dev webcam demo — mock inference for ultra-fast UI preview
+# Real webcam capture + tripwire; no YOLO CPU load.
 
 device_uid: edge-vsn-01
 tenant_id: 1
 location_id: 1
 
-inference_fps: 4
-preview_fps: 12
+inference_fps: 10
+preview_fps: 15
 inference_confidence_threshold: 0.4
-inference_backend: cpu
-# inference_backend: mock   # uncomment for ultra-fast UI demo (no YOLO, real webcam only)
+inference_backend: mock
 stream_backend: opencv
 capture_width: 640
 capture_height: 480
@@ -35,6 +34,5 @@ cameras:
     source_type: webcam
     rtsp_url: "0"
     tripwire:
-      # Coordinates for 640x480 capture (calibrate via dashboard if resolution changes)
       line: [[67, 160], [360, 160]]
       direction: down

@@ -59,7 +59,8 @@ def annotate_frame(
 
     overlay = (
         f"persons={stats.person_count}  IN={stats.enter_count}  OUT={stats.exit_count}  "
-        f"fps={stats.fps:.1f}  cam={stats.camera_id}  {stats.status}"
+        f"preview={stats.preview_fps:.1f}fps  infer={stats.inference_fps:.1f}fps  "
+        f"cam={stats.camera_id}  {stats.status}"
     )
     cv2.rectangle(canvas, (0, 0), (canvas.shape[1], 28), (0, 0, 0), -1)
     cv2.putText(
@@ -76,9 +77,31 @@ def annotate_frame(
     return canvas
 
 
-def encode_jpeg(image: NDArray[np.uint8]) -> bytes:
-    ok, encoded = cv2.imencode(".jpg", image, [int(cv2.IMWRITE_JPEG_QUALITY), 80])
+def encode_jpeg(
+    image: NDArray[np.uint8],
+    *,
+    quality: int = 70,
+    max_width: int = 640,
+) -> bytes:
+    preview = _resize_for_preview(image, max_width)
+    ok, encoded = cv2.imencode(".jpg", preview, [int(cv2.IMWRITE_JPEG_QUALITY), quality])
     if not ok:
-        log.warning("failed to encode preview jpeg")
+        log.warning("failed to encode preview jpeg quality=%d max_width=%d", quality, max_width)
         return b""
+    log.debug(
+        "encoded preview jpeg bytes=%d quality=%d size=%dx%d",
+        len(encoded),
+        quality,
+        preview.shape[1],
+        preview.shape[0],
+    )
     return encoded.tobytes()
+
+
+def _resize_for_preview(image: NDArray[np.uint8], max_width: int) -> NDArray[np.uint8]:
+    height, width = image.shape[:2]
+    if width <= max_width:
+        return image
+    scale = max_width / width
+    new_height = max(1, int(height * scale))
+    return cv2.resize(image, (max_width, new_height), interpolation=cv2.INTER_AREA)
