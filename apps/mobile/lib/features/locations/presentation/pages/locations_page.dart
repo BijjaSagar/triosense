@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:triosense/core/di.dart';
 import 'package:triosense/features/locations/domain/entities/location_summary.dart';
 import 'package:triosense/features/locations/presentation/bloc/locations_bloc.dart';
@@ -56,6 +57,7 @@ class _LocationsGrid extends StatelessWidget {
             trailing: Chip(
               label: Text(location.status),
             ),
+            onTap: () => context.push('/locations/${location.locationId}'),
           ),
         );
       },
