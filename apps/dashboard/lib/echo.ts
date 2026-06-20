@@ -21,6 +21,8 @@ export function getEcho(token: string): Echo<'pusher'> {
   echoInstance = new Echo({
     broadcaster: 'pusher',
     key,
+    // Pusher-js requires cluster even with custom wsHost; mt1 is a dummy for Reverb.
+    cluster: 'mt1',
     wsHost: host,
     wsPort: port,
     wssPort: port,
