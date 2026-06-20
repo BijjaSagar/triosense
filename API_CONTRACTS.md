@@ -195,6 +195,15 @@ Trigger an immediate manual announcement.
 
 #### `POST /users/me/fcm-token`
 Register or update a user's FCM token for push notifications.
+```json
+{ "fcm_token": "firebase-device-token" }
+```
+Response `data`: `{ "registered": true }`
+
+### 1.9 Observability
+
+#### `GET /metrics/prometheus`
+Unauthenticated operational counters for Prometheus scraping (local/staging). Returns JSON wrapper with `format: "prometheus_text"` and a `metrics` string containing counter/gauge lines (`triosense_fifo_ticks_total`, `triosense_mqtt_events_total`, `triosense_active_locations`).
 
 ---
 

@@ -320,6 +320,157 @@ components:
           items:
             $ref: '#/components/schemas/EdgeCameraConfig'
 
+    CutoffAccuracySummary:
+      type: object
+      properties:
+        days_with_predictions:
+          type: integer
+        days_within_tolerance:
+          type: integer
+        median_delta:
+          type: number
+          nullable: true
+        max_delta:
+          type: integer
+          nullable: true
+
+    CutoffAccuracyDailyRow:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        mode:
+          type: string
+        predicted_cutoff_position:
+          type: integer
+          nullable: true
+        actual_closure_position:
+          type: integer
+          nullable: true
+        delta_positions:
+          type: integer
+          nullable: true
+        within_tolerance:
+          type: boolean
+          nullable: true
+        predicted_at:
+          type: string
+          format: date-time
+        closed_at:
+          type: string
+          format: date-time
+          nullable: true
+        closed_reason:
+          type: string
+          nullable: true
+
+    CutoffAccuracyReport:
+      type: object
+      required: [location_id, from, to, summary, daily]
+      properties:
+        location_id:
+          type: integer
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        summary:
+          $ref: '#/components/schemas/CutoffAccuracySummary'
+        daily:
+          type: array
+          items:
+            $ref: '#/components/schemas/CutoffAccuracyDailyRow'
+
+    AnnouncementItem:
+      type: object
+      properties:
+        announcement_id:
+          type: integer
+        language:
+          type: string
+        text_played:
+          type: string
+        trigger_type:
+          type: string
+        status:
+          type: string
+        played_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    CrossCounterRecommendation:
+      type: object
+      properties:
+        source_location_id:
+          type: integer
+        source_location_name:
+          type: string
+        target_location_id:
+          type: integer
+        target_location_name:
+          type: string
+        target_tokens_remaining:
+          type: integer
+        target_queue_length:
+          type: integer
+        buffer:
+          type: integer
+        message:
+          type: string
+
+    CutoffOverrideRequest:
+      type: object
+      required: [action, reason]
+      properties:
+        action:
+          type: string
+          enum: [force_open, force_close, set_cutoff]
+        cutoff_position:
+          type: integer
+          minimum: 1
+        reason:
+          type: string
+          minLength: 5
+          maxLength: 500
+
+    UpdateLocationRequest:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [shadow, live, disabled]
+        festival_mode:
+          type: boolean
+        default_quota:
+          type: integer
+          minimum: 1
+
+    RegisterFcmTokenRequest:
+      type: object
+      required: [fcm_token]
+      properties:
+        fcm_token:
+          type: string
+          maxLength: 255
+
+    PrometheusMetricsResponse:
+      type: object
+      required: [format, metrics]
+      properties:
+        format:
+          type: string
+          const: prometheus_text
+        metrics:
+          type: string
+
 paths:
   /auth/login:
     post:
@@ -461,3 +612,226 @@ paths:
           description: Missing or invalid edge API key
         '404':
           description: Unknown edge device
+
+  /metrics/prometheus:
+    get:
+      summary: Prometheus-format operational counters
+      tags: [Observability]
+      responses:
+        '200':
+          description: Metrics payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrometheusMetricsResponse'
+
+  /locations/{id}:
+    get:
+      summary: Location detail with live state snapshot
+      tags: [Locations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Location detail
+        '401':
+          description: Unauthenticated
+        '404':
+          description: Location not found
+    patch:
+      summary: Update location mode, festival mode, or default quota
+      tags: [Locations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateLocationRequest'
+      responses:
+        '200':
+          description: Updated location
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '422':
+          description: Validation failed
+
+  /locations/{id}/cutoff-events:
+    get:
+      summary: Paginated cutoff decision history
+      tags: [Locations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 50
+        - name: mode
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated cutoff events
+
+  /locations/{id}/cutoff-accuracy:
+    get:
+      summary: Shadow-mode predicted vs actual cutoff accuracy
+      tags: [Locations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Accuracy report
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/CutoffAccuracyReport'
+
+  /locations/{id}/cutoff/override:
+    post:
+      summary: Manual cutoff override (audit-logged)
+      tags: [Operator]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CutoffOverrideRequest'
+      responses:
+        '200':
+          description: Updated live state after override
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/LocationState'
+        '401':
+          description: Unauthenticated
+        '403':
+          description: Forbidden
+        '422':
+          description: Validation failed
+
+  /locations/{id}/announcements:
+    get:
+      summary: Paginated announcement playback history
+      tags: [Locations]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Announcement history
+
+  /cross-counter/recommendations:
+    get:
+      summary: Active cross-counter redirection recommendations
+      tags: [Locations]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Recommendations list
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          recommendations:
+                            type: array
+                            items:
+                              $ref: '#/components/schemas/CrossCounterRecommendation'
+
+  /users/me/fcm-token:
+    post:
+      summary: Register or update FCM push token for the current user
+      tags: [Notifications]
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterFcmTokenRequest'
+      responses:
+        '200':
+          description: Token registered
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiSuccessEnvelope'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          registered:
+                            type: boolean
+                            const: true
+        '401':
+          description: Unauthenticated
+        '422':
+          description: Validation failed
