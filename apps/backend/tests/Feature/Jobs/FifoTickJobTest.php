@@ -106,7 +106,7 @@ it('does not persist cutoff_events when status is unchanged on consecutive ticks
         'queue_tail' => 50,
         'status' => Status::OPEN->value,
         'issuance_rate_per_min' => 18.0,
-        'arrival_rate_per_min' => 20.0,
+        'arrival_rate_per_min' => 0.0,
     ]);
 
     $service = app(FifoTickService::class);

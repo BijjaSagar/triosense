@@ -8,26 +8,31 @@ use App\Domain\Fifo\Decision;
 use App\Domain\Fifo\LiveState;
 use App\Domain\Fifo\LocationRedisKeys;
 use Carbon\CarbonImmutable;
-use Illuminate\Contracts\Redis\Factory as RedisFactory;
-use Illuminate\Redis\Connections\Connection;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Redis;
 
 /**
  * Atomically writes FIFO decision outputs back to Redis.
  */
 final class LocationRedisStateWriter
 {
-    public function __construct(
-        private readonly RedisFactory $redis,
-    ) {
+    private readonly string $applyScript;
+
+    public function __construct()
+    {
+        $this->applyScript = (string) file_get_contents(
+            base_path('scripts/lua/apply_fifo_decision.lua')
+        );
     }
 
     public function apply(int $locationId, Decision $decision, LiveState $state): void
     {
         $tokensRemaining = $state->tokensRemaining();
         $status = $decision->status->value;
-        $cutoffKey = LocationRedisKeys::cutoff($locationId);
         $asOfMs = (string) CarbonImmutable::now()->getTimestampMs();
+        $cutoffValue = $decision->cutoffPosition === null
+            ? ''
+            : (string) $decision->cutoffPosition;
 
         Log::debug('LocationRedisStateWriter.apply', [
             'location_id' => $locationId,
@@ -36,24 +41,18 @@ final class LocationRedisStateWriter
             'tokens_remaining' => $tokensRemaining,
         ]);
 
-        $this->connection()->transaction(function (Connection $tx) use (
-            $locationId,
+        Redis::connection()->command('eval', [
+            $this->applyScript,
+            4,
+            LocationRedisKeys::status($locationId),
+            LocationRedisKeys::tokensRemaining($locationId),
+            LocationRedisKeys::lastEventAt($locationId),
+            LocationRedisKeys::cutoff($locationId),
             $status,
-            $tokensRemaining,
-            $cutoffKey,
+            (string) $tokensRemaining,
             $asOfMs,
-            $decision,
-        ): void {
-            $tx->set(LocationRedisKeys::status($locationId), $status);
-            $tx->set(LocationRedisKeys::tokensRemaining($locationId), (string) $tokensRemaining);
-            $tx->set(LocationRedisKeys::lastEventAt($locationId), $asOfMs);
-
-            if ($decision->cutoffPosition === null) {
-                $tx->del($cutoffKey);
-            } else {
-                $tx->set($cutoffKey, (string) $decision->cutoffPosition);
-            }
-        });
+            $cutoffValue,
+        ]);
     }
 
     /**
@@ -75,30 +74,23 @@ final class LocationRedisStateWriter
             'arrival_rate_per_min' => LocationRedisKeys::arrivalRatePerMin($locationId),
         ];
 
-        $connection = $this->connection();
-
         foreach ($values as $field => $value) {
             if (! array_key_exists($field, $map)) {
                 continue;
             }
 
             if ($value === null) {
-                $connection->del($map[$field]);
+                Redis::del($map[$field]);
 
                 continue;
             }
 
-            $connection->set($map[$field], (string) $value);
+            Redis::set($map[$field], (string) $value);
         }
 
         Log::debug('LocationRedisStateWriter.seed', [
             'location_id' => $locationId,
             'fields' => array_keys($values),
         ]);
-    }
-
-    private function connection(): Connection
-    {
-        return $this->redis->connection();
     }
 }

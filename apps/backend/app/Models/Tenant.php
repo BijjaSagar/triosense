@@ -25,6 +25,9 @@ final class Tenant extends Model
         'deleted_at' => 'datetime',
     ];
 
+    /**
+     * @return HasMany<Location, $this>
+     */
     public function locations(): HasMany
     {
         return $this->hasMany(Location::class, 'tenant_id', 'tenant_id');

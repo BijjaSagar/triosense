@@ -34,11 +34,17 @@ final class Location extends Model
         'festival_mode' => 'boolean',
     ];
 
+    /**
+     * @return BelongsTo<Tenant, $this>
+     */
     public function tenant(): BelongsTo
     {
         return $this->belongsTo(Tenant::class, 'tenant_id', 'tenant_id');
     }
 
+    /**
+     * @return HasMany<CutoffEvent, $this>
+     */
     public function cutoffEvents(): HasMany
     {
         return $this->hasMany(CutoffEvent::class, 'location_id', 'location_id');

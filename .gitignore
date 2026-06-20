@@ -26,6 +26,8 @@ desktop.ini
 logs/
 
 # ---------- Laravel backend ----------
+apps/backend/bootstrap/cache/*
+!apps/backend/bootstrap/cache/.gitkeep
 apps/backend/vendor/
 apps/backend/node_modules/
 apps/backend/storage/app/private/
@@ -97,4 +99,3 @@ infra/certs/
 docker-compose.override.yml
 
 # ---------- generated ----------
-docs/api/openapi.yaml

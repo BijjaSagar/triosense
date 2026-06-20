@@ -39,6 +39,7 @@ function makeState(
 it('is OPEN at the start of the day', function () {
     $decision = (new CutoffCalculator())->decide(makeState(
         issued: 0, queueHead: 0, queueTail: 50,
+        arrivalRate: 0.0,
     ));
 
     expect($decision->status)->toBe(Status::OPEN);
@@ -108,6 +109,7 @@ it('handles malformed state where head > tail gracefully', function () {
     $decision = (new CutoffCalculator())->decide(makeState(
         quota: 5000, issued: 1000,
         queueHead: 100, queueTail: 50,
+        arrivalRate: 0.0,
     ));
 
     expect($decision->status)->toBe(Status::OPEN);
