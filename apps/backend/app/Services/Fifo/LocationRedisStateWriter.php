@@ -41,7 +41,7 @@ final class LocationRedisStateWriter
             'tokens_remaining' => $tokensRemaining,
         ]);
 
-        Redis::connection()->command('eval', [
+        Redis::eval(
             $this->applyScript,
             4,
             LocationRedisKeys::status($locationId),
@@ -52,7 +52,7 @@ final class LocationRedisStateWriter
             (string) $tokensRemaining,
             $asOfMs,
             $cutoffValue,
-        ]);
+        );
     }
 
     /**

@@ -39,7 +39,7 @@ final class QueueEventRedisWriter
         $rate = $this->rateTracker->recordEnter($locationId, CarbonImmutable::parse($event->occurred_at));
         $asOfMs = (string) CarbonImmutable::parse($event->received_at)->getTimestampMs();
 
-        Redis::connection()->command('eval', [
+        Redis::eval(
             $this->enterScript,
             3,
             LocationRedisKeys::queueTail($locationId),
@@ -47,7 +47,7 @@ final class QueueEventRedisWriter
             LocationRedisKeys::arrivalRatePerMin($locationId),
             $asOfMs,
             (string) round($rate, 3),
-        ]);
+        );
 
         Log::info('QueueEventRedisWriter.applyEnter', [
             'location_id' => $locationId,
@@ -62,7 +62,7 @@ final class QueueEventRedisWriter
         $rate = $this->rateTracker->recordIssue($locationId, CarbonImmutable::parse($event->occurred_at));
         $asOfMs = (string) CarbonImmutable::parse($event->received_at)->getTimestampMs();
 
-        Redis::connection()->command('eval', [
+        Redis::eval(
             $this->issueScript,
             5,
             LocationRedisKeys::issued($locationId),
@@ -73,7 +73,7 @@ final class QueueEventRedisWriter
             (string) $quota,
             $asOfMs,
             (string) round($rate, 3),
-        ]);
+        );
 
         Log::info('QueueEventRedisWriter.applyIssue', [
             'location_id' => $locationId,
@@ -87,14 +87,14 @@ final class QueueEventRedisWriter
         $this->rateTracker->recordExit($locationId, CarbonImmutable::parse($event->occurred_at));
         $asOfMs = (string) CarbonImmutable::parse($event->received_at)->getTimestampMs();
 
-        Redis::connection()->command('eval', [
+        Redis::eval(
             $this->exitScript,
             3,
             LocationRedisKeys::queueTail($locationId),
             LocationRedisKeys::queueHead($locationId),
             LocationRedisKeys::lastEventAt($locationId),
             $asOfMs,
-        ]);
+        );
 
         Log::info('QueueEventRedisWriter.applyExit', [
             'location_id' => $locationId,
