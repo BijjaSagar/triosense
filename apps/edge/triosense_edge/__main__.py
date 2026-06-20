@@ -13,6 +13,8 @@ from pathlib import Path
 
 from triosense_edge.config_loader import export_model, fetch_edge_config, load_config
 from triosense_edge.pipeline.runner import PipelineRunner
+from triosense_edge.preview.server import run_preview_server
+from triosense_edge.preview.state import PreviewState
 from triosense_edge.transport.buffer import EventBuffer
 from triosense_edge.transport.command_subscriber import CommandSubscriber
 from triosense_edge.transport.mqtt_client import MqttClient
@@ -20,7 +22,13 @@ from triosense_edge.transport.mqtt_client import MqttClient
 log = logging.getLogger(__name__)
 
 
-async def _run_pipeline(config_path: Path | None, fetch_from_api: bool) -> int:
+async def _run_pipeline(
+    config_path: Path | None,
+    fetch_from_api: bool,
+    *,
+    preview_port: int | None,
+    preview_host: str,
+) -> int:
     if fetch_from_api:
         device_uid = os.environ["TRIOSENSE_EDGE_DEVICE_UID"]
         api_key = os.environ["TRIOSENSE_EDGE_API_KEY"]
@@ -46,7 +54,8 @@ async def _run_pipeline(config_path: Path | None, fetch_from_api: bool) -> int:
         command_sub.entry_closed,
     )
 
-    runner = PipelineRunner(config=config, mqtt=mqtt)
+    preview_state = PreviewState() if preview_port is not None else None
+    runner = PipelineRunner(config=config, mqtt=mqtt, preview_state=preview_state)
     await runner.start()
 
     stop = asyncio.Event()
@@ -55,10 +64,31 @@ async def _run_pipeline(config_path: Path | None, fetch_from_api: bool) -> int:
         with contextlib.suppress(NotImplementedError):
             loop.add_signal_handler(sig, stop.set)
 
+    tasks: list[asyncio.Task[None]] = []
+    if preview_state is not None and preview_port is not None:
+        preview_task = asyncio.create_task(
+            run_preview_server(
+                preview_state,
+                host=preview_host,
+                port=preview_port,
+            ),
+            name="preview-server",
+        )
+        tasks.append(preview_task)
+        log.info(
+            "edge preview available at http://%s:%d",
+            preview_host,
+            preview_port,
+        )
+
     log.info("edge pipeline running device=%s location=%d", config.device_uid, config.location_id)
     try:
         await stop.wait()
     finally:
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
         await runner.stop()
         await mqtt.disconnect()
     return 0
@@ -74,6 +104,17 @@ def main(argv: list[str] | None = None) -> int:
         help="Export YOLOv8n to TensorRT engine",
     )
     parser.add_argument("--log-level", default=os.environ.get("TRIOSENSE_LOG_LEVEL", "INFO"))
+    parser.add_argument(
+        "--preview-port",
+        type=int,
+        default=None,
+        help="Serve annotated MJPEG preview on this port (Mac demo)",
+    )
+    parser.add_argument(
+        "--preview-host",
+        default="127.0.0.1",
+        help="Bind address for preview server",
+    )
     args = parser.parse_args(argv)
 
     logging.basicConfig(
@@ -86,7 +127,14 @@ def main(argv: list[str] | None = None) -> int:
         export_model(config, Path("models"))
         return 0
 
-    return asyncio.run(_run_pipeline(args.config, args.fetch_config))
+    return asyncio.run(
+        _run_pipeline(
+            args.config,
+            args.fetch_config,
+            preview_port=args.preview_port,
+            preview_host=args.preview_host,
+        )
+    )
 
 
 if __name__ == "__main__":

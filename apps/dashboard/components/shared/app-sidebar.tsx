@@ -68,6 +68,17 @@ export function AppSidebar({ locations = FALLBACK_LOCATIONS }: AppSidebarProps) 
             >
               Camera settings
             </Link>
+            <Link
+              href={`/dashboard/locations/${location.location_id}/preview`}
+              className={cn(
+                'ml-6 block rounded-lg px-3 py-1 text-xs',
+                pathname === `/dashboard/locations/${location.location_id}/preview`
+                  ? 'font-semibold text-maroon-700'
+                  : 'text-muted-foreground hover:text-foreground',
+              )}
+            >
+              Camera preview
+            </Link>
           </div>
         ))}
       </nav>

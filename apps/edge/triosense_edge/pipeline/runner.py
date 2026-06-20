@@ -13,6 +13,8 @@ from triosense_edge.pipeline.detector import build_detector
 from triosense_edge.pipeline.stream import RtspStream
 from triosense_edge.pipeline.tracker import ByteTracker
 from triosense_edge.pipeline.tripwire import TripwireDetector
+from triosense_edge.preview.annotate import annotate_frame, encode_jpeg
+from triosense_edge.preview.state import PreviewState, PreviewStats
 from triosense_edge.transport.mqtt_client import MqttClient
 from triosense_edge.transport.schemas import CameraHeartbeat, EventPayload, HeartbeatPayload
 
@@ -30,9 +32,11 @@ class CameraStats:
 class PipelineRunner:
     config: EdgeConfig
     mqtt: MqttClient
+    preview_state: PreviewState | None = None
     _detector: object = field(init=False)
     _tasks: list[asyncio.Task[None]] = field(default_factory=list)
     _camera_stats: dict[int, CameraStats] = field(default_factory=dict)
+    _preview_counters: dict[int, tuple[int, int]] = field(default_factory=dict)
     _started_at: datetime = field(default_factory=lambda: datetime.now(UTC))
 
     def __post_init__(self) -> None:
@@ -76,6 +80,7 @@ class PipelineRunner:
             reconnect_seconds=self.config.rtsp_reconnect_seconds,
         )
         stats = self._camera_stats[camera.camera_id]
+        self._preview_counters.setdefault(camera.camera_id, (0, 0))
 
         while True:
             try:
@@ -89,11 +94,27 @@ class PipelineRunner:
                         elapsed = max(time.perf_counter() - loop_start, 1e-6)
                         stats.fps = round(1.0 / elapsed, 2)
 
-                        if tripwire is None:
-                            continue
+                        if tripwire is not None:
+                            for event in tripwire.process(tracks, frame.timestamp):
+                                enters, exits = self._preview_counters[camera.camera_id]
+                                if event.direction == "in":
+                                    enters += 1
+                                else:
+                                    exits += 1
+                                self._preview_counters[camera.camera_id] = (enters, exits)
+                                await self._publish_tripwire_event(
+                                    camera,
+                                    event,
+                                    frame.frame_number,
+                                )
 
-                        for event in tripwire.process(tracks, frame.timestamp):
-                            await self._publish_tripwire_event(camera, event, frame.frame_number)
+                        await self._publish_preview_frame(
+                            camera,
+                            frame.image,
+                            detections,
+                            tracks,
+                            stats,
+                        )
             except asyncio.CancelledError:
                 stats.status = "stopped"
                 raise
@@ -101,6 +122,39 @@ class PipelineRunner:
                 stats.status = "degraded"
                 log.exception("camera loop error camera_id=%d", camera.camera_id)
                 await asyncio.sleep(self.config.rtsp_reconnect_seconds)
+
+    async def _publish_preview_frame(
+        self,
+        camera: CameraConfig,
+        image: object,
+        detections: list[object],
+        tracks: list[object],
+        stats: CameraStats,
+    ) -> None:
+        if self.preview_state is None:
+            return
+
+        from triosense_edge.pipeline.types import Detection, Track
+
+        typed_detections = [item for item in detections if isinstance(item, Detection)]
+        typed_tracks = [item for item in tracks if isinstance(item, Track)]
+        enters, exits = self._preview_counters.get(camera.camera_id, (0, 0))
+        preview_stats = PreviewStats(
+            person_count=len(typed_tracks),
+            enter_count=enters,
+            exit_count=exits,
+            fps=stats.fps,
+            camera_id=camera.camera_id,
+            status=stats.status,
+        )
+        annotated = annotate_frame(
+            image,  # type: ignore[arg-type]
+            detections=typed_detections,
+            tracks=typed_tracks,
+            tripwire=camera.tripwire,
+            stats=preview_stats,
+        )
+        await self.preview_state.update(encode_jpeg(annotated), preview_stats)
 
     async def _publish_tripwire_event(
         self,

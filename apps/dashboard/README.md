@@ -10,7 +10,16 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Then open `http://localhost:3000`.
+Then open `http://localhost:3001` (or the port shown by `npm run dev`).
+
+## Mac webcam demo preview
+
+When running `make edge-webcam` from the repo root, open:
+
+- **Dashboard preview:** `/dashboard/locations/1/preview` — MJPEG feed + IN/OUT counters beside live queue state
+- **Edge-only preview:** `http://127.0.0.1:8766` — standalone annotated stream
+
+Set `NEXT_PUBLIC_EDGE_PREVIEW_URL` in `.env.local` if the edge preview binds elsewhere.
 
 ## Authentication
 
@@ -26,9 +35,9 @@ See [`lib/api.ts`](./lib/api.ts) and [`lib/echo.ts`](./lib/echo.ts).
 ## What it shows
 
 - **`/dashboard`** — 3-location grid view, live state per counter
-- **`/dashboard/locations/[id]`** — detail view for one location: live counter, issuance chart, recent events, edge device health
-- **`/dashboard/locations/[id]/cutoffs`** — historical cutoff predictions vs actuals (shadow-mode validation tool)
-- **`/dashboard/settings`** — quota management, announcement templates, user assignments
+- **`/dashboard/locations/[id]`** — detail view for one location: live counter, recent events, edge device health
+- **`/dashboard/locations/[id]/preview`** — Mac webcam demo: MJPEG feed + person/IN/OUT counters from edge preview server
+- **`/dashboard/locations/[id]/settings`** — camera source and tripwire configuration
 
 ## Live data flow
 

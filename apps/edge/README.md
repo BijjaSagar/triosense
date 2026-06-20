@@ -77,7 +77,12 @@ make edge-webcam
 
 Walk across the tripwire line in frame; watch MQTT `enter`/`exit` events on the dashboard live view for location 1.
 
-Configure the tripwire via dashboard: `http://localhost:3000/dashboard/locations/1/settings` (login: `ops@ttd.gov.in` / `password`).
+**Preview URLs**
+
+- Edge MJPEG preview (while `make edge-webcam` is running): [http://127.0.0.1:8766](http://127.0.0.1:8766)
+- Dashboard preview page: [http://localhost:3001/dashboard/locations/1/preview](http://localhost:3001/dashboard/locations/1/preview)
+
+Configure the tripwire via dashboard: [http://localhost:3001/dashboard/locations/1/settings](http://localhost:3001/dashboard/locations/1/settings) (login: `ops@ttd.gov.in` / `password`).
 
 ## Module map
 

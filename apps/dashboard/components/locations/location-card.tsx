@@ -51,7 +51,7 @@ export function LocationCard({ initialState, compact = false }: LocationCardProp
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
-        {state.edge_devices.map((device) => (
+        {(state.edge_devices ?? []).map((device) => (
           <span
             key={device.device_uid}
             className={cn(

@@ -115,6 +115,7 @@ def create_app(config_path: Path, camera_index: int = 0) -> FastAPI:
     camera = edge_config.cameras[camera_index]
     stream = RtspStream(
         camera.rtsp_url,
+        source_type=camera.source_type,
         backend=edge_config.stream_backend,
         target_fps=2,
         reconnect_seconds=edge_config.rtsp_reconnect_seconds,

@@ -62,6 +62,12 @@ export default function LocationDetailPage() {
         >
           Camera settings
         </Link>
+        <Link
+          href={`/dashboard/locations/${locationId}/preview`}
+          className="text-sm font-medium text-maroon-700 hover:underline"
+        >
+          Camera preview
+        </Link>
       </div>
       <ShadowModeBanner mode={state.mode ?? 'live'} />
 

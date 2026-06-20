@@ -16,7 +16,10 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const token = getToken();
-    if (!token) return;
+    if (!token) {
+      setLoading(false);
+      return;
+    }
 
     Promise.all(LOCATION_IDS.map((id) => fetchLocationState(id, token)))
       .then(setStates)
@@ -25,6 +28,14 @@ export default function DashboardPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  if (!loading && states.length === 0 && !error) {
+    return (
+      <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-muted-foreground">
+        Sign in to load live counter state.
+      </div>
+    );
+  }
 
   if (loading) {
     return (
