@@ -27,6 +27,8 @@ return [
 
     'fcm' => [
         'server_key' => env('TRIOSENSE_FCM_SERVER_KEY'),
+        'project_id' => env('TRIOSENSE_FCM_PROJECT_ID'),
+        'credentials_path' => env('TRIOSENSE_FCM_CREDENTIALS_PATH'),
     ],
 
     'cross_counter' => [
