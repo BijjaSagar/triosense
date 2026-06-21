@@ -10,6 +10,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 
@@ -45,9 +46,27 @@ final class AuthController extends Controller
             'last_login_ip' => $request->ip(),
         ])->save();
 
+        $useCookieAuth = $request->header('X-TrioSense-Auth') === 'cookie';
+
+        if ($useCookieAuth) {
+            Auth::guard('web')->login($user, remember: true);
+            $request->session()->regenerate();
+
+            Log::info('AuthController.login.success.cookie', [
+                'user_id' => $user->user_id,
+                'tenant_id' => $user->tenant_id,
+            ]);
+
+            return $this->successResponse([
+                'token' => null,
+                'user' => $this->serializeUser($user),
+                'expires_at' => null,
+            ]);
+        }
+
         $token = $user->createToken('api')->plainTextToken;
 
-        Log::info('AuthController.login.success', [
+        Log::info('AuthController.login.success.token', [
             'user_id' => $user->user_id,
             'tenant_id' => $user->tenant_id,
         ]);
@@ -65,10 +84,15 @@ final class AuthController extends Controller
 
         if ($user !== null) {
             Log::info('AuthController.logout', ['user_id' => $user->user_id]);
+
             $token = $user->currentAccessToken();
             if ($token !== null) {
                 $token->delete();
             }
+
+            Auth::guard('web')->logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
         }
 
         return response()->noContent();

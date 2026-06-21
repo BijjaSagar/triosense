@@ -30,6 +30,27 @@ it('logs in with valid credentials and returns a sanctum token', function () {
     expect($response->json('data.token'))->not->toBeEmpty();
 });
 
+it('logs in with session cookie when spa auth header is present', function () {
+    $user = User::query()->withoutGlobalScopes()->where('email', 'ops@ttd.gov.in')->firstOrFail();
+
+    $response = $this->withHeader('X-TrioSense-Auth', 'cookie')
+        ->postJson('/api/v1/auth/login', [
+            'email' => 'ops@ttd.gov.in',
+            'password' => 'password',
+        ]);
+
+    $response->assertOk()
+        ->assertJsonPath('success', true)
+        ->assertJsonPath('data.token', null)
+        ->assertJsonPath('data.user.email', 'ops@ttd.gov.in');
+
+    $this->assertAuthenticatedAs($user, 'web');
+
+    $this->getJson('/api/v1/auth/me')
+        ->assertOk()
+        ->assertJsonPath('data.email', 'ops@ttd.gov.in');
+});
+
 it('rejects invalid credentials', function () {
     $response = $this->postJson('/api/v1/auth/login', [
         'email' => 'ops@ttd.gov.in',
