@@ -35,7 +35,7 @@ jobs:
         with:
           php-version: '8.3'
           extensions: pdo, pdo_sqlite, redis
-          coverage: none
+          coverage: pcov
 
       - name: Install Composer dependencies
         working-directory: apps/backend
@@ -48,3 +48,7 @@ jobs:
       - name: Pest tests
         working-directory: apps/backend
         run: ./vendor/bin/pest --no-coverage
+
+      - name: FIFO domain coverage (≥95%)
+        working-directory: apps/backend
+        run: ./vendor/bin/pest tests/Unit/Fifo --coverage --min=95
