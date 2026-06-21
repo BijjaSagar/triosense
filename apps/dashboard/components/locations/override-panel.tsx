@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { applyCutoffOverride } from '@/lib/api';
-import { getToken } from '@/lib/auth';
 
 interface OverridePanelProps {
   locationId: number;
@@ -17,8 +16,7 @@ export function OverridePanel({ locationId, onApplied }: OverridePanelProps) {
   const [message, setMessage] = useState<string | null>(null);
 
   async function submit(action: 'force_open' | 'force_close' | 'set_cutoff') {
-    const token = getToken();
-    if (!token || reason.length < 5) {
+    if (reason.length < 5) {
       setMessage('Reason must be at least 5 characters');
       return;
     }
@@ -27,7 +25,7 @@ export function OverridePanel({ locationId, onApplied }: OverridePanelProps) {
     setMessage(null);
 
     try {
-      await applyCutoffOverride(locationId, token, {
+      await applyCutoffOverride(locationId, {
         action,
         reason,
         cutoff_position: action === 'set_cutoff' ? Number(cutoffPosition) : undefined,

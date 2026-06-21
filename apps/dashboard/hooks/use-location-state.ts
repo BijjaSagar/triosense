@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react';
 import { getEcho } from '@/lib/echo';
-import { getToken } from '@/lib/auth';
 import type { LocationState, LocationStateUpdatedEvent } from '@/types/api';
 
 export function useLocationState(
@@ -15,13 +14,7 @@ export function useLocationState(
   >('connecting');
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      setConnectionState('disconnected');
-      return;
-    }
-
-    const echo = getEcho(token);
+    const echo = getEcho();
     setConnectionState('connecting');
 
     try {

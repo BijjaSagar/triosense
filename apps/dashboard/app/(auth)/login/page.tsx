@@ -5,7 +5,7 @@ import { useState, type FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { login } from '@/lib/api';
-import { setToken } from '@/lib/auth';
+import { markAuthenticated } from '@/lib/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,8 +20,8 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const result = await login(email, password);
-      setToken(result.token);
+      await login(email, password);
+      markAuthenticated();
       router.push('/dashboard');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');

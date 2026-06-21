@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { CrossCounterBanner } from '@/components/locations/cross-counter-banner';
 import { LocationCard } from '@/components/locations/location-card';
 import { fetchLocationState } from '@/lib/api';
-import { getToken } from '@/lib/auth';
 import type { LocationState } from '@/types/api';
 
 const LOCATION_IDS = [1, 2, 3];
@@ -15,13 +14,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
-    Promise.all(LOCATION_IDS.map((id) => fetchLocationState(id, token)))
+    Promise.all(LOCATION_IDS.map((id) => fetchLocationState(id)))
       .then(setStates)
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load locations');

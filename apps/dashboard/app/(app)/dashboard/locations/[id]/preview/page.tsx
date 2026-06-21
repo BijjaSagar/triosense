@@ -5,7 +5,6 @@ import { useParams } from 'next/navigation';
 import { EdgePreviewPanel } from '@/components/locations/edge-preview-panel';
 import { LocationCard } from '@/components/locations/location-card';
 import { fetchLocationState } from '@/lib/api';
-import { getToken } from '@/lib/auth';
 import type { LocationState } from '@/types/api';
 import { useEffect, useState } from 'react';
 
@@ -16,13 +15,12 @@ export default function LocationPreviewPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token || Number.isNaN(locationId)) {
-      setError('Not authenticated');
+    if (Number.isNaN(locationId)) {
+      setError('Invalid location');
       return;
     }
 
-    fetchLocationState(locationId, token)
+    fetchLocationState(locationId)
       .then(setState)
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load location');

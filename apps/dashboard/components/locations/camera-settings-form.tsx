@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { fetchLocationCameras, updateLocationCamera } from '@/lib/api';
-import { getToken } from '@/lib/auth';
 import type { CameraConfig, TripwireConfig } from '@/types/api';
 
 interface CameraSettingsFormProps {
@@ -49,17 +48,11 @@ export function CameraSettingsForm({ locationId, camera, onSaved }: CameraSettin
   }, [camera]);
 
   async function save() {
-    const token = getToken();
-    if (!token) {
-      setMessage('Not authenticated');
-      return;
-    }
-
     setLoading(true);
     setMessage(null);
 
     try {
-      await updateLocationCamera(locationId, camera.camera_id, token, {
+      await updateLocationCamera(locationId, camera.camera_id, {
         name,
         source_type: sourceType,
         rtsp_url: rtspUrl,
@@ -217,13 +210,7 @@ export function CameraSettingsPanel({ locationId }: CameraSettingsPanelProps) {
   const [error, setError] = useState<string | null>(null);
 
   function reload() {
-    const token = getToken();
-    if (!token) {
-      setError('Not authenticated');
-      return;
-    }
-
-    fetchLocationCameras(locationId, token)
+    fetchLocationCameras(locationId)
       .then((items) => {
         setCameras(items);
         setError(null);

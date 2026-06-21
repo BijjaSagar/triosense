@@ -2,17 +2,13 @@
 
 import { useEffect, useState } from 'react';
 import { fetchCrossCounterRecommendations } from '@/lib/api';
-import { getToken } from '@/lib/auth';
 import type { CrossCounterRecommendation } from '@/types/api';
 
 export function CrossCounterBanner() {
   const [items, setItems] = useState<CrossCounterRecommendation[]>([]);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-
-    fetchCrossCounterRecommendations(token)
+    fetchCrossCounterRecommendations()
       .then((data) => setItems(data.recommendations))
       .catch(() => setItems([]));
   }, []);

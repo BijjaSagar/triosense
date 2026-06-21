@@ -11,7 +11,6 @@ import {
   YAxis,
 } from 'recharts';
 import { fetchCutoffAccuracy } from '@/lib/api';
-import { getToken } from '@/lib/auth';
 import type { CutoffAccuracyReport } from '@/types/api';
 
 interface ShadowPerformanceChartProps {
@@ -23,10 +22,7 @@ export function ShadowPerformanceChart({ locationId }: ShadowPerformanceChartPro
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token) return;
-
-    fetchCutoffAccuracy(locationId, token)
+    fetchCutoffAccuracy(locationId)
       .then(setReport)
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Failed to load accuracy data');

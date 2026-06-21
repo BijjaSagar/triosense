@@ -8,8 +8,8 @@ import { LocationCard } from '@/components/locations/location-card';
 import { OverridePanel } from '@/components/locations/override-panel';
 import { ShadowModeBanner } from '@/components/locations/shadow-mode-banner';
 import { ShadowPerformanceChart } from '@/components/locations/shadow-performance-chart';
+import { IssuedArrivedChart } from '@/components/locations/issued-arrived-chart';
 import { fetchAnnouncements, fetchLocationEvents, fetchLocationState } from '@/lib/api';
-import { getToken } from '@/lib/auth';
 import type { AnnouncementItem, LocationState, QueueEventItem } from '@/types/api';
 
 export default function LocationDetailPage() {
@@ -22,13 +22,12 @@ export default function LocationDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   function reload() {
-    const token = getToken();
-    if (!token || Number.isNaN(locationId)) return;
+    if (Number.isNaN(locationId)) return;
 
     Promise.all([
-      fetchLocationState(locationId, token),
-      fetchLocationEvents(locationId, token, 50),
-      fetchAnnouncements(locationId, token),
+      fetchLocationState(locationId),
+      fetchLocationEvents(locationId, 50),
+      fetchAnnouncements(locationId),
     ])
       .then(([locationState, paginated, ann]) => {
         setState(locationState);
@@ -93,6 +92,15 @@ export default function LocationDetailPage() {
       {tab === 'live' && (
         <>
           <LocationCard initialState={state} />
+          <section>
+            <h2 className="text-lg font-semibold text-maroon-700">Issued vs arrived</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              15-minute buckets from recent enter and issue events
+            </p>
+            <div className="mt-4 rounded-xl border border-border p-4">
+              <IssuedArrivedChart events={events} />
+            </div>
+          </section>
           <OverridePanel locationId={locationId} onApplied={reload} />
           <section>
             <h2 className="text-lg font-semibold text-maroon-700">Recent events</h2>

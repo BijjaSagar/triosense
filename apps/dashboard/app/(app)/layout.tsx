@@ -3,8 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppSidebar } from '@/components/shared/app-sidebar';
-import { fetchLocations } from '@/lib/api';
-import { getToken, isAuthenticated } from '@/lib/auth';
+import { fetchLocations, fetchMe } from '@/lib/api';
+import { markAuthenticated, markLoggedOut } from '@/lib/auth';
 import type { LocationSummary } from '@/types/api';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -12,17 +12,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [locations, setLocations] = useState<LocationSummary[]>([]);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      router.replace('/login');
-      return;
-    }
-
-    const token = getToken();
-    if (!token) return;
-
-    fetchLocations(token)
+    fetchMe()
+      .then(() => {
+        markAuthenticated();
+        return fetchLocations();
+      })
       .then(setLocations)
       .catch(() => {
+        markLoggedOut();
         router.replace('/login');
       });
   }, [router]);

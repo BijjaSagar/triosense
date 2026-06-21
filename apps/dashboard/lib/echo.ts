@@ -2,10 +2,11 @@
 
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
+import { apiBaseUrl, readCookie } from '@/lib/api-client';
 
 let echoInstance: Echo<'pusher'> | null = null;
 
-export function getEcho(token: string): Echo<'pusher'> {
+export function getEcho(): Echo<'pusher'> {
   if (echoInstance) {
     return echoInstance;
   }
@@ -15,13 +16,13 @@ export function getEcho(token: string): Echo<'pusher'> {
   const port = Number(process.env.NEXT_PUBLIC_REVERB_PORT ?? 8080);
   const scheme = process.env.NEXT_PUBLIC_REVERB_SCHEME ?? 'http';
   const forceTLS = scheme === 'https';
+  const base = apiBaseUrl();
 
   window.Pusher = Pusher;
 
   echoInstance = new Echo({
     broadcaster: 'pusher',
     key,
-    // Pusher-js requires cluster even with custom wsHost; mt1 is a dummy for Reverb.
     cluster: 'mt1',
     wsHost: host,
     wsPort: port,
@@ -29,13 +30,40 @@ export function getEcho(token: string): Echo<'pusher'> {
     forceTLS,
     disableStats: true,
     enabledTransports: ['ws', 'wss'],
-    authEndpoint: `${process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000'}/broadcasting/auth`,
+    authEndpoint: `${base}/broadcasting/auth`,
     auth: {
       headers: {
-        Authorization: `Bearer ${token}`,
         Accept: 'application/json',
+        'X-XSRF-TOKEN': readCookie('XSRF-TOKEN') ?? '',
       },
     },
+    authorizer: (channel: { name: string }) => ({
+      authorize: (socketId: string, callback: (error: Error | null, data: unknown) => void) => {
+        fetch(`${base}/broadcasting/auth`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-XSRF-TOKEN': readCookie('XSRF-TOKEN') ?? '',
+          },
+          body: JSON.stringify({
+            socket_id: socketId,
+            channel_name: channel.name,
+          }),
+        })
+          .then(async (response) => {
+            if (!response.ok) {
+              callback(new Error(`Broadcast auth failed: ${response.status}`), null);
+              return;
+            }
+            callback(null, await response.json());
+          })
+          .catch((error: Error) => {
+            callback(error, null);
+          });
+      },
+    }),
   });
 
   return echoInstance;

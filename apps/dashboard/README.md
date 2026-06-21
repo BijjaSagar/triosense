@@ -23,14 +23,15 @@ Set `NEXT_PUBLIC_EDGE_PREVIEW_URL` in `.env.local` if the edge preview binds els
 
 ## Authentication
 
-The dashboard uses **Bearer token auth** (Sanctum personal access tokens), not cookie-based SPA auth:
+The dashboard uses **Sanctum SPA cookie auth** (HttpOnly session, no bearer token in browser storage):
 
-1. `POST /api/v1/auth/login` returns `{ token, user }`.
-2. The token is stored in `sessionStorage` and sent as `Authorization: Bearer <token>` on REST calls and Echo WebSocket auth.
+1. `GET /sanctum/csrf-cookie` — obtain CSRF token
+2. `POST /api/v1/auth/login` with header `X-TrioSense-Auth: cookie` — session established
+3. Subsequent REST and Echo requests use `credentials: 'include'`
 
-**Why not Sanctum cookies yet?** Cookie auth requires same-site CSRF + `SANCTUM_STATEFUL_DOMAINS` wiring across Next.js server actions. Bearer tokens are sufficient for the Sprint 1–10 operator dashboard; migrate to cookie sessions in a dedicated auth sprint when server actions own all mutations.
+Mobile and automation clients omit the header and receive a Bearer token in the login response.
 
-See [`lib/api.ts`](./lib/api.ts) and [`lib/echo.ts`](./lib/echo.ts).
+See [`lib/api.ts`](./lib/api.ts), [`lib/api-client.ts`](./lib/api-client.ts), and [`lib/echo.ts`](./lib/echo.ts).
 
 ## What it shows
 

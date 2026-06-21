@@ -6,21 +6,14 @@ import type {
   LoginResponse,
   PaginatedEvents,
 } from '@/types/api';
+import {
+  apiBaseUrl,
+  cookieAuthHeaders,
+  defaultHeaders,
+  ensureCsrfCookie,
+} from '@/lib/api-client';
 
-const BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
-
-function authHeaders(token?: string): HeadersInit {
-  const headers: Record<string, string> = {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-  };
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-
-  return headers;
-}
+const BASE = apiBaseUrl();
 
 async function parseResponse<T>(res: Response): Promise<T> {
   const json = (await res.json()) as ApiResponse<T> | ApiErrorResponse;
@@ -38,18 +31,45 @@ export async function login(
   email: string,
   password: string,
 ): Promise<LoginResponse> {
+  await ensureCsrfCookie();
+
   const res = await fetch(`${BASE}/api/v1/auth/login`, {
     method: 'POST',
-    headers: authHeaders(),
+    headers: {
+      ...defaultHeaders(),
+      'X-TrioSense-Auth': 'cookie',
+    },
+    credentials: 'include',
     body: JSON.stringify({ email, password }),
   });
 
   return parseResponse<LoginResponse>(res);
 }
 
-export async function fetchLocations(token: string): Promise<LocationSummary[]> {
+export async function logout(): Promise<void> {
+  await ensureCsrfCookie();
+
+  await fetch(`${BASE}/api/v1/auth/logout`, {
+    method: 'POST',
+    headers: cookieAuthHeaders(),
+    credentials: 'include',
+  });
+}
+
+export async function fetchMe(): Promise<LoginResponse['user']> {
+  const res = await fetch(`${BASE}/api/v1/auth/me`, {
+    headers: cookieAuthHeaders(),
+    credentials: 'include',
+    cache: 'no-store',
+  });
+
+  return parseResponse(res);
+}
+
+export async function fetchLocations(): Promise<LocationSummary[]> {
   const res = await fetch(`${BASE}/api/v1/locations`, {
-    headers: authHeaders(token),
+    headers: cookieAuthHeaders(),
+    credentials: 'include',
     cache: 'no-store',
   });
 
@@ -59,10 +79,10 @@ export async function fetchLocations(token: string): Promise<LocationSummary[]> 
 
 export async function fetchLocationState(
   locationId: number,
-  token: string,
 ): Promise<LocationState> {
   const res = await fetch(`${BASE}/api/v1/locations/${locationId}/state`, {
-    headers: authHeaders(token),
+    headers: cookieAuthHeaders(),
+    credentials: 'include',
     cache: 'no-store',
   });
 
@@ -71,13 +91,13 @@ export async function fetchLocationState(
 
 export async function fetchLocationEvents(
   locationId: number,
-  token: string,
   perPage = 50,
 ): Promise<PaginatedEvents> {
   const res = await fetch(
     `${BASE}/api/v1/locations/${locationId}/events?per_page=${perPage}`,
     {
-      headers: authHeaders(token),
+      headers: cookieAuthHeaders(),
+      credentials: 'include',
       cache: 'no-store',
     },
   );
@@ -87,10 +107,10 @@ export async function fetchLocationEvents(
 
 export async function fetchCutoffAccuracy(
   locationId: number,
-  token: string,
 ): Promise<import('@/types/api').CutoffAccuracyReport> {
   const res = await fetch(`${BASE}/api/v1/locations/${locationId}/cutoff-accuracy`, {
-    headers: authHeaders(token),
+    headers: cookieAuthHeaders(),
+    credentials: 'include',
     cache: 'no-store',
   });
 
@@ -99,10 +119,10 @@ export async function fetchCutoffAccuracy(
 
 export async function fetchAnnouncements(
   locationId: number,
-  token: string,
 ): Promise<{ items: import('@/types/api').AnnouncementItem[] }> {
   const res = await fetch(`${BASE}/api/v1/locations/${locationId}/announcements`, {
-    headers: authHeaders(token),
+    headers: cookieAuthHeaders(),
+    credentials: 'include',
     cache: 'no-store',
   });
 
@@ -111,12 +131,14 @@ export async function fetchAnnouncements(
 
 export async function applyCutoffOverride(
   locationId: number,
-  token: string,
   body: { action: string; reason: string; cutoff_position?: number },
 ): Promise<LocationState> {
+  await ensureCsrfCookie();
+
   const res = await fetch(`${BASE}/api/v1/locations/${locationId}/cutoff/override`, {
     method: 'POST',
-    headers: authHeaders(token),
+    headers: cookieAuthHeaders(),
+    credentials: 'include',
     body: JSON.stringify(body),
   });
 
@@ -125,23 +147,26 @@ export async function applyCutoffOverride(
 
 export async function updateLocation(
   locationId: number,
-  token: string,
   body: { mode?: string; festival_mode?: boolean },
 ): Promise<{ location_id: number; mode: string; festival_mode: boolean }> {
+  await ensureCsrfCookie();
+
   const res = await fetch(`${BASE}/api/v1/locations/${locationId}`, {
     method: 'PATCH',
-    headers: authHeaders(token),
+    headers: cookieAuthHeaders(),
+    credentials: 'include',
     body: JSON.stringify(body),
   });
 
   return parseResponse(res);
 }
 
-export async function fetchCrossCounterRecommendations(
-  token: string,
-): Promise<{ recommendations: import('@/types/api').CrossCounterRecommendation[] }> {
+export async function fetchCrossCounterRecommendations(): Promise<{
+  recommendations: import('@/types/api').CrossCounterRecommendation[];
+}> {
   const res = await fetch(`${BASE}/api/v1/cross-counter/recommendations`, {
-    headers: authHeaders(token),
+    headers: cookieAuthHeaders(),
+    credentials: 'include',
     cache: 'no-store',
   });
 
@@ -150,10 +175,10 @@ export async function fetchCrossCounterRecommendations(
 
 export async function fetchLocationCameras(
   locationId: number,
-  token: string,
 ): Promise<import('@/types/api').CameraConfig[]> {
   const res = await fetch(`${BASE}/api/v1/locations/${locationId}/cameras`, {
-    headers: authHeaders(token),
+    headers: cookieAuthHeaders(),
+    credentials: 'include',
     cache: 'no-store',
   });
 
@@ -164,7 +189,6 @@ export async function fetchLocationCameras(
 export async function updateLocationCamera(
   locationId: number,
   cameraId: number,
-  token: string,
   body: {
     name?: string;
     role?: string;
@@ -174,9 +198,12 @@ export async function updateLocationCamera(
     status?: string;
   },
 ): Promise<import('@/types/api').CameraConfig> {
+  await ensureCsrfCookie();
+
   const res = await fetch(`${BASE}/api/v1/locations/${locationId}/cameras/${cameraId}`, {
     method: 'PATCH',
-    headers: authHeaders(token),
+    headers: cookieAuthHeaders(),
+    credentials: 'include',
     body: JSON.stringify(body),
   });
 

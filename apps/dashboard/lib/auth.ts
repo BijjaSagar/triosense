@@ -1,18 +1,32 @@
-const TOKEN_KEY = 'triosense_auth_token';
+let authenticated = false;
 
-export function getToken(): string | null {
-  if (typeof window === 'undefined') return null;
-  return localStorage.getItem(TOKEN_KEY);
+export function markAuthenticated(): void {
+  authenticated = true;
 }
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
-}
-
-export function clearToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
+export function markLoggedOut(): void {
+  authenticated = false;
 }
 
 export function isAuthenticated(): boolean {
-  return getToken() !== null && getToken() !== '';
+  return authenticated;
+}
+
+export function setAuthenticated(value: boolean): void {
+  authenticated = value;
+}
+
+/** @deprecated Cookie auth — no bearer token stored client-side. */
+export function getToken(): string | null {
+  return isAuthenticated() ? 'cookie' : null;
+}
+
+/** @deprecated Cookie auth — session is HttpOnly. */
+export function setToken(_token: string): void {
+  markAuthenticated();
+}
+
+/** @deprecated Cookie auth — call logout API instead. */
+export function clearToken(): void {
+  markLoggedOut();
 }
