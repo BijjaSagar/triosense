@@ -7,7 +7,14 @@
 ## 1. REST API
 
 **Base URL.** `https://api.triosense.in/api/v1` (production). `http://localhost:8000/api/v1` (local).
-**Auth.** Laravel Sanctum bearer token in `Authorization: Bearer <token>`.
+**Auth.** Laravel Sanctum — **Bearer token** for mobile/API clients, or **HttpOnly session cookie** for the dashboard SPA.
+
+**Dashboard SPA flow:**
+1. `GET /sanctum/csrf-cookie` (with credentials)
+2. `POST /auth/login` with header `X-TrioSense-Auth: cookie`
+3. Subsequent requests use session cookie + `X-XSRF-TOKEN` header
+
+**Mobile / automation:** omit the header; login returns `{ "token": "..." }` for `Authorization: Bearer <token>`.
 **Format.** All responses JSON, all wrapped in `ApiResponse` envelope.
 
 ### 1.1 Envelope
@@ -43,9 +50,16 @@ Request:
 ```json
 { "email": "ops@ttd.gov.in", "password": "•••••••••" }
 ```
-Response 200:
+Headers (dashboard only): `X-TrioSense-Auth: cookie`
+
+Response 200 (mobile — bearer token):
 ```json
-{ "success": true, "data": { "token": "sanctum-token", "user": { ... }, "expires_at": "..." } }
+{ "success": true, "data": { "token": "sanctum-token", "user": { ... }, "expires_at": null } }
+```
+
+Response 200 (dashboard — session cookie, token null):
+```json
+{ "success": true, "data": { "token": null, "user": { ... }, "expires_at": null } }
 ```
 
 #### `POST /auth/logout`

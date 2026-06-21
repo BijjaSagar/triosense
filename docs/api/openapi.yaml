@@ -109,10 +109,12 @@ components:
 
     LoginResponseData:
       type: object
-      required: [token, user, expires_at]
+      required: [user, expires_at]
       properties:
         token:
           type: string
+          nullable: true
+          description: Bearer token for mobile/API clients; null when X-TrioSense-Auth cookie session is used
         user:
           $ref: '#/components/schemas/AuthUser'
         expires_at:
@@ -527,6 +529,14 @@ paths:
     post:
       summary: Authenticate an operator
       tags: [Auth]
+      parameters:
+        - in: header
+          name: X-TrioSense-Auth
+          schema:
+            type: string
+            enum: [cookie]
+          required: false
+          description: When set to `cookie`, establishes an HttpOnly Sanctum SPA session instead of returning a bearer token
       requestBody:
         required: true
         content:
