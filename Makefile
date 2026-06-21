@@ -9,7 +9,7 @@ COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compos
         edge-install edge-test edge-lint edge-pipeline edge-calibrate edge-webcam edge-simulate \
         mobile-test mobile-analyze \
         test lint \
-        seed clean
+        seed clean replay
 
 help: ## Show this help
 	@grep -hE '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
@@ -141,6 +141,11 @@ lint: backend-stan dashboard-lint edge-lint mobile-analyze ## Run all linters
 # ---------- utility ----------
 
 seed: backend-seed ## Alias
+
+replay: ## Replay queue_events into Redis (DATE=2026-06-20 LOCATION=3)
+	@test -n "$(DATE)" || (echo "Usage: make replay DATE=YYYY-MM-DD LOCATION=<id>" && exit 1)
+	@test -n "$(LOCATION)" || (echo "Usage: make replay DATE=YYYY-MM-DD LOCATION=<id>" && exit 1)
+	cd apps/backend && php artisan triosense:replay $(DATE) $(LOCATION)
 
 clean: ## Remove all containers and volumes — DESTRUCTIVE
 	$(COMPOSE) down -v
