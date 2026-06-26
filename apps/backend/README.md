@@ -25,6 +25,24 @@ Or from the repo root:
 make backend-test backend-stan
 ```
 
+### macOS / host PHP without phpredis
+
+Queue and FIFO tick dispatch use Redis from PHP. On a Mac with PHP 8.5+ and no `ext-redis`, run workers in Docker from the repo root:
+
+```bash
+make backend-serve-docker
+make backend-queue-docker
+make backend-tick-docker
+make backend-reverb-docker
+```
+
+To build `ext-redis` locally via PECL, answer **no** to optional serializers, or:
+
+```bash
+pecl install -D 'enable-redis-igbinary=no' redis
+```
+
+
 ## What lives where
 
 ```

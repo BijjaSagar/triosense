@@ -64,6 +64,34 @@ This brings up:
 - EMQX MQTT broker on `localhost:1883` (MQTT) and `localhost:18083` (dashboard)
 - Mailhog on `localhost:8025` (for transactional email testing)
 
+### Recommended local startup order (Makefile)
+
+EMQX can report **health: starting** for 10–20s after `make up`. Starting `make backend-mqtt` before the broker accepts TCP on `1883` fails with `ConnectingToBrokerFailedException`.
+
+```bash
+make up
+make wait-emqx          # or: sleep 15 && make health   # EMQX line should show "pong"
+make backend-serve-docker   # API http://localhost:8001
+# Redis workers (use Docker on macOS if host PHP has no phpredis):
+make backend-queue-docker
+make backend-tick-docker
+make backend-reverb-docker  # WebSocket http://localhost:8080
+# separate terminals (host PHP OK for MQTT / edge; do not Ctrl+Z — use fg or restart):
+make backend-mqtt
+make edge-simulate
+make dashboard-dev        # http://localhost:3001 — only one instance (EADDRINUSE if already running)
+```
+
+**macOS host PHP without phpredis:** `make backend-queue` and `make backend-tick` need the `redis` PECL extension. If `pecl install redis` fails (e.g. missing `igbinary.h`), answer **no** to all optional serializer prompts, or run:
+
+```bash
+pecl install -D 'enable-redis-igbinary=no' redis
+```
+
+Otherwise use the `*-docker` worker targets above (`triosense-php:8.4-local` image includes phpredis and `infra/docker/backend-serve.env` for the compose network).
+
+
+
 ### Start the backend
 ```bash
 cd apps/backend

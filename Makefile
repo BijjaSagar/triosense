@@ -3,8 +3,9 @@ SHELL := /bin/bash
 # Prefer Docker Compose V2 plugin; fall back to standalone docker-compose.
 COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo "docker compose" || echo "docker-compose")
 
-.PHONY: help up down logs ps health restart \
+.PHONY: help up down logs ps health wait-emqx restart \
         backend-shell backend-test backend-stan backend-migrate backend-seed \
+        backend-queue-docker backend-tick-docker backend-reverb-docker \
         dashboard-dev dashboard-build dashboard-test dashboard-lint \
         edge-install edge-test edge-lint edge-pipeline edge-calibrate edge-webcam edge-simulate \
         mobile-test mobile-analyze \
@@ -48,6 +49,21 @@ health: ## Check service health
 	@echo "Mailhog UI: http://localhost:8025"
 	@echo "EMQX dashboard: http://localhost:18083 (admin/public)"
 
+
+wait-emqx: ## Block until EMQX responds to emqx ping (up to ~60s)
+	@echo "Waiting for EMQX MQTT broker..."
+	@for i in $$(seq 1 30); do \
+		if $(COMPOSE) ps --status running -q emqx 2>/dev/null | grep -q . \
+			&& $(COMPOSE) exec -T emqx emqx ping 2>/dev/null | grep -q pong; then \
+			echo "✓ EMQX ready"; \
+			exit 0; \
+		fi; \
+		echo "  ... still starting ($$i/30)"; \
+		sleep 2; \
+	done; \
+	echo "✗ EMQX not ready — run: make up && make health"; \
+	exit 1
+
 restart: down up
 
 # ---------- backend ----------
@@ -67,7 +83,7 @@ backend-migrate: ## Run pending migrations
 backend-seed: ## Reset and reseed database
 	cd apps/backend && php artisan migrate:fresh --seed
 
-backend-mqtt: ## Start the MQTT subscriber daemon
+backend-mqtt: wait-emqx ## Start the MQTT subscriber daemon
 	cd apps/backend && php artisan triosense:mqtt-subscribe
 
 backend-tick: ## Start the FIFO tick worker
@@ -78,6 +94,19 @@ backend-reverb: ## Start the Reverb WebSocket server
 
 backend-queue: ## Start the queue worker
 	cd apps/backend && php artisan queue:work redis
+
+
+backend-serve-docker: ## Run API in Docker on :8001 (compose network env)
+	./scripts/backend-serve-docker.sh
+
+backend-queue-docker: ## Run queue worker in Docker (phpredis in image)
+	./scripts/backend-queue-docker.sh
+
+backend-tick-docker: ## Run FIFO tick dispatcher in Docker
+	./scripts/backend-tick-docker.sh
+
+backend-reverb-docker: ## Run Reverb WebSocket in Docker on :8080
+	./scripts/backend-reverb-docker.sh
 
 # ---------- dashboard ----------
 
